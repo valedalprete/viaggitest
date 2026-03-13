@@ -20,34 +20,43 @@ export default function DashboardPage() {
     const supabase = createClient();
 
     supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-
-      // Fetch memberships (includes own + shared trips via new RLS)
-      const { data: memberships } = await supabase
-        .from('trip_members')
-        .select('role, trip_id')
-        .eq('user_id', user.id);
-
-      if (!memberships || memberships.length === 0) {
+      if (!user) {
         setTrips([]);
         setLoading(false);
         return;
       }
 
-      const roleMap: Record<string, TripRole> = {};
-      memberships.forEach(m => { roleMap[m.trip_id] = m.role as TripRole; });
+      try {
+        // Fetch memberships (includes own + shared trips via new RLS)
+        const { data: memberships } = await supabase
+          .from('trip_members')
+          .select('role, trip_id')
+          .eq('user_id', user.id);
 
-      const tripIds = memberships.map(m => m.trip_id);
+        if (!memberships || memberships.length === 0) {
+          setTrips([]);
+          return;
+        }
 
-      const { data: tripsData } = await supabase
-        .from('trips')
-        .select('*')
-        .in('id', tripIds)
-        .order('start_date', { ascending: false });
+        const roleMap: Record<string, TripRole> = {};
+        memberships.forEach(m => { roleMap[m.trip_id] = m.role as TripRole; });
 
-      setTrips(
-        (tripsData ?? []).map(t => ({ ...t, myRole: roleMap[t.id] ?? 'viewer' }))
-      );
+        const tripIds = memberships.map(m => m.trip_id);
+
+        const { data: tripsData } = await supabase
+          .from('trips')
+          .select('*')
+          .in('id', tripIds)
+          .order('start_date', { ascending: false });
+
+        setTrips(
+          (tripsData ?? []).map(t => ({ ...t, myRole: roleMap[t.id] ?? 'viewer' }))
+        );
+      } finally {
+        setLoading(false);
+      }
+    }).catch(() => {
+      setTrips([]);
       setLoading(false);
     });
   }, []);

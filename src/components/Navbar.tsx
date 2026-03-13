@@ -10,6 +10,7 @@ import { Profile } from '@/lib/types';
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
 
   // Hide navbar on auth and invite pages
@@ -21,17 +22,31 @@ export default function Navbar() {
 
     const loadProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      setProfile(data);
+      if (!user) {
+        setUserEmail(null);
+        setProfile(null);
+        return;
+      }
+
+      setUserEmail(user.email ?? null);
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      setProfile(data ?? null);
     };
 
     loadProfile();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
+        setUserEmail(null);
         setProfile(null);
       } else {
+        setUserEmail(session.user.email ?? null);
         loadProfile();
       }
     });
@@ -39,9 +54,11 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (isAuthPage || isInvitePage || !profile) return null;
+  if (isAuthPage || isInvitePage || !userEmail) return null;
 
-  const initials = (profile.display_name || profile.email || '?')
+  const displayName = profile?.display_name || profile?.email || userEmail;
+
+  const initials = (displayName || '?')
     .split(' ')
     .map(w => w[0])
     .join('')
@@ -76,7 +93,7 @@ export default function Navbar() {
                 <span className="text-primary-900 font-bold text-xs">{initials}</span>
               </div>
               <span className="hidden sm:inline max-w-[160px] truncate">
-                {profile.display_name || profile.email}
+                {displayName}
               </span>
             </Link>
             <button

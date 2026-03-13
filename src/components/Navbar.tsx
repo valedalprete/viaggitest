@@ -54,9 +54,9 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (isAuthPage || isInvitePage || !userEmail) return null;
+  if (isAuthPage || isInvitePage) return null;
 
-  const displayName = profile?.display_name || profile?.email || userEmail;
+  const displayName = profile?.display_name || profile?.email || userEmail || 'Account';
 
   const initials = (displayName || '?')
     .split(' ')

@@ -82,13 +82,22 @@ export function getTripDuration(startDate: string, endDate: string): number {
 
 /** Returns an array of ISO date strings for every day of the trip */
 export function getDaysArray(startDate: string, endDate: string): string[] {
+  const toLocalIso = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   const days: string[] = [];
   const current = new Date(startDate + 'T00:00:00');
   const end = new Date(endDate + 'T00:00:00');
+
   while (current <= end) {
-    days.push(current.toISOString().split('T')[0]);
+    days.push(toLocalIso(current));
     current.setDate(current.getDate() + 1);
   }
+
   return days;
 }
 

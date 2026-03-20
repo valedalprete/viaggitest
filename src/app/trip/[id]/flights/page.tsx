@@ -9,6 +9,7 @@ import { Flight } from '@/lib/types';
 import { formatDateTime, formatCurrency } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import EmptyState from '@/components/EmptyState';
+import TicketAttachments from '@/components/TicketAttachments';
 
 const FLIGHT_TYPES = [
   { value: 'outbound', label: 'Andata' },
@@ -77,8 +78,13 @@ export default function FlightsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
-      <Link href={`/trip/${tripId}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-primary-800 bg-sand-200 hover:bg-sand-300 rounded-lg mb-6 transition-colors">
-        <ArrowLeft size={15} /> Torna al viaggio
+      <Link
+        href={`/trip/${tripId}`}
+        aria-label="Torna al viaggio"
+        title="Torna al viaggio"
+        className="inline-flex items-center text-slate-600 hover:text-slate-900 mb-6 transition-colors"
+      >
+        <ArrowLeft size={18} strokeWidth={2.3} />
       </Link>
 
       <div className="flex items-center justify-between mb-6">
@@ -121,6 +127,7 @@ export default function FlightsPage() {
                   {f.booking_ref  && <span>Ref: <span className="font-mono">{f.booking_ref}</span></span>}
                 </div>
                 {f.notes && <p className="mt-1 text-xs text-gray-400 italic">{f.notes}</p>}
+                <TicketAttachments module="flight" tripId={tripId} recordId={f.id} />
               </div>
               <div className="flex gap-1.5 flex-shrink-0">
                 <button onClick={() => openEdit(f)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-sand-200"><Edit size={14} /></button>

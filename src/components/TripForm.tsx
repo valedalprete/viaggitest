@@ -135,10 +135,11 @@ export default function TripForm({ trip }: TripFormProps) {
       {/* Back */}
       <button
         onClick={() => router.back()}
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors"
+        aria-label="Torna indietro"
+        title="Torna indietro"
+        className="inline-flex items-center text-slate-600 hover:text-slate-900 mb-6 transition-colors"
       >
-        <ArrowLeft size={15} />
-        Indietro
+        <ArrowLeft size={18} strokeWidth={2.3} />
       </button>
 
       <div className="card p-8">
@@ -146,9 +147,9 @@ export default function TripForm({ trip }: TripFormProps) {
           {trip ? 'Modifica viaggio' : 'Nuovo viaggio'}
         </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="form-interactive space-y-5">
           {/* Name */}
-          <div className="form-group">
+          <div className="form-group form-section">
             <label className="label">Nome viaggio *</label>
             <input
               type="text"
@@ -161,7 +162,7 @@ export default function TripForm({ trip }: TripFormProps) {
           </div>
 
           {/* Destination */}
-          <div className="form-group relative">
+          <div className="form-group form-section relative">
             <label className="label">Destinazione *</label>
             <div className="relative">
               <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -180,13 +181,13 @@ export default function TripForm({ trip }: TripFormProps) {
             </div>
             {/* Autocomplete dropdown */}
             {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-elevated overflow-hidden">
+              <div className="absolute z-20 top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-elevated overflow-hidden">
                 {suggestions.map((s, i) => (
                   <button
                     key={i}
                     type="button"
                     onClick={() => selectSuggestion(s)}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-sand-100 hover:text-primary-800 border-b border-sand-100 last:border-0 transition-colors"
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-800 border-b border-slate-100 last:border-0 transition-colors"
                   >
                     <span className="font-medium">{s.display_name.split(',')[0]}</span>
                     <span className="text-gray-400 ml-1 text-xs">
@@ -202,7 +203,7 @@ export default function TripForm({ trip }: TripFormProps) {
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 form-section">
             <div className="form-group">
               <label className="label">Data inizio *</label>
               <div className="relative">
@@ -233,7 +234,7 @@ export default function TripForm({ trip }: TripFormProps) {
           </div>
 
           {/* Cover Image */}
-          <div className="form-group">
+          <div className="form-group form-section">
             <label className="label">URL immagine di copertina (opzionale)</label>
             <div className="relative">
               <ImageIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -251,7 +252,7 @@ export default function TripForm({ trip }: TripFormProps) {
           </div>
 
           {/* Notes */}
-          <div className="form-group">
+          <div className="form-group form-section">
             <label className="label">Note (opzionale)</label>
             <textarea
               value={notes}

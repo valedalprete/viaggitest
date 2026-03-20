@@ -58,8 +58,8 @@ function RegisterForm() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-teal-700 flex items-center justify-center p-4">
-        <div className="bg-[#fefcf8] rounded-2xl shadow-elevated border border-sand-200 p-10 max-w-md w-full text-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#eff7ff] via-[#f5faff] to-[#f8f7ff] flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-elevated border border-sand-200 p-10 max-w-md w-full text-center">
           <div className="text-5xl mb-4">✉️</div>
           <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Controlla la tua email</h2>
           <p className="text-gray-500 text-sm leading-relaxed">
@@ -73,25 +73,25 @@ function RegisterForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-900 via-primary-800 to-teal-700 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#eff7ff] via-[#f5faff] to-[#f8f7ff] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-400 rounded-2xl mb-4 shadow-elevated">
-            <Plane size={30} className="text-primary-900" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-2xl mb-4 shadow-elevated">
+            <Plane size={30} className="text-primary-700" />
           </div>
-          <h1 className="text-3xl font-extrabold text-white">Crea il tuo account</h1>
-          <p className="text-white/60 mt-2 text-sm">Inizia a pianificare i tuoi viaggi</p>
+          <h1 className="text-3xl font-extrabold text-slate-900">Crea il tuo account</h1>
+          <p className="text-slate-500 mt-2 text-sm">Inizia a pianificare i tuoi viaggi</p>
         </div>
 
         {/* Form */}
-        <div className="bg-[#fefcf8] rounded-2xl shadow-elevated border border-sand-200 p-8">
+        <div className="bg-white rounded-2xl shadow-elevated border border-sand-200 p-8">
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Display Name */}
             <div className="form-group">
               <label className="label">Nome visualizzato *</label>
               <div className="relative">
-                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-sand-400" />
+                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-sand-500" />
                 <input
                   type="text"
                   value={displayName}
@@ -107,7 +107,7 @@ function RegisterForm() {
             <div className="form-group">
               <label className="label">Email</label>
               <div className="relative">
-                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-sand-400" />
+                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-sand-500" />
                 <input
                   type="email"
                   value={email}
@@ -123,7 +123,7 @@ function RegisterForm() {
             <div className="form-group">
               <label className="label">Password</label>
               <div className="relative">
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-sand-400" />
+                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-sand-500" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
@@ -136,7 +136,7 @@ function RegisterForm() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sand-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sand-500 hover:text-slate-700"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -146,7 +146,7 @@ function RegisterForm() {
             <div className="form-group">
               <label className="label">Conferma Password</label>
               <div className="relative">
-                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-sand-400" />
+                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-sand-500" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={confirmPassword}

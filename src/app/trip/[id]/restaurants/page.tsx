@@ -1,27 +1,36 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Plus, Utensils, Edit, Trash2, Search, Loader2, ExternalLink, MapPin } from 'lucide-react';
+import { ArrowLeft, Plus, Utensils, Edit, Trash2, ExternalLink, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { Restaurant, Trip } from '@/lib/types';
-import { formatDate, formatCurrency } from '@/lib/utils';
-import { autosuggestPlaces, formatKinds } from '@/lib/opentripmap';
+import { Restaurant } from '@/lib/types';
+import { formatDate } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import EmptyState from '@/components/EmptyState';
 
-type TabKey = 'booked' | 'wishlist' | 'recommended';
+type StatusKey = 'booked' | 'wishlist';
+type ViewKey = 'all' | StatusKey;
 
-const TABS: { key: TabKey; label: string; desc: string }[] = [
-  { key: 'booked',      label: 'Prenotati',   desc: 'Ristoranti con prenotazione confermata' },
-  { key: 'wishlist',    label: 'Preferiti',   desc: 'Da prenotare o visitare' },
-  { key: 'recommended', label: 'Consigliati', desc: 'Suggeriti da OpenTripMap' },
+const VIEW_TABS: { key: ViewKey; label: string; desc: string }[] = [
+  { key: 'all',      label: 'Tutti',      desc: 'Tutti i ristoranti del viaggio' },
+  { key: 'booked',   label: 'Prenotati',  desc: 'Ristoranti con prenotazione confermata' },
+  { key: 'wishlist', label: 'Salvati',    desc: 'Ristoranti salvati da valutare/prenotare' },
+];
+
+const STATUS_OPTIONS: { key: StatusKey; label: string }[] = [
+  { key: 'booked', label: 'Prenotati' },
+  { key: 'wishlist', label: 'Salvati' },
 ];
 
 const PRICE_RANGES = ['€', '€€', '€€€', '€€€€'];
 
-const empty = (status: TabKey): Partial<Restaurant> => ({
+const normalizeStatus = (status: Restaurant['status'] | null | undefined): StatusKey => {
+  return status === 'booked' ? 'booked' : 'wishlist';
+};
+
+const empty = (status: StatusKey): Partial<Restaurant> => ({
   name: '', address: '', status, booking_date: '', booking_time: '',
   cuisine: '', price_range: null, notes: '', source: 'manual',
   maps_url: '', tiktok_url: '',
@@ -37,21 +46,14 @@ const tryExtractName = (url: string): string => {
 
 export default function RestaurantsPage() {
   const { id: tripId } = useParams<{ id: string }>();
-  const [tab, setTab] = useState<TabKey>('booked');
+  const [view, setView] = useState<ViewKey>('all');
   const [items, setItems] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Restaurant | null>(null);
-  const [form, setForm] = useState<Partial<Restaurant>>(empty('booked'));
+  const [form, setForm] = useState<Partial<Restaurant>>(empty('wishlist'));
   const [saving, setSaving] = useState(false);
-  const [trip, setTrip] = useState<Trip | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
-
-  // OpenTripMap search state
-  const [otmSearch, setOtmSearch] = useState('');
-  const [otmResults, setOtmResults] = useState<{ xid: string; name: string; kinds: string }[]>([]);
-  const [otmLoading, setOtmLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const supabase = createClient();
 
@@ -64,28 +66,19 @@ export default function RestaurantsPage() {
 
   useEffect(() => {
     load();
-    supabase.from('trips').select('*').eq('id', tripId).single().then(({ data }) => setTrip(data));
   }, [tripId]);
 
-  // OpenTripMap search (debounced)
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!otmSearch.trim() || !trip?.lat || !trip?.lon) { setOtmResults([]); return; }
-    debounceRef.current = setTimeout(async () => {
-      setOtmLoading(true);
-      const results = await autosuggestPlaces(otmSearch, trip.lat!, trip.lon!, 'foods,restaurants');
-      setOtmResults(results.filter(r => r.name?.trim()));
-      setOtmLoading(false);
-    }, 600);
-  }, [otmSearch, trip]);
+  const openAdd = () => {
+    setEditing(null);
+    const defaultStatus: StatusKey = view === 'booked' ? 'booked' : 'wishlist';
+    setForm(empty(defaultStatus));
+    setModalOpen(true);
+  };
 
-  const openAdd = () => { setEditing(null); setForm(empty(tab)); setOtmSearch(''); setOtmResults([]); setModalOpen(true); };
-  const openEdit = (item: Restaurant) => { setEditing(item); setForm(item); setOtmSearch(''); setOtmResults([]); setModalOpen(true); };
-
-  const selectOtm = (r: { xid: string; name: string; kinds: string }) => {
-    setForm(p => ({ ...p, name: r.name, source: 'opentripmap', external_id: r.xid, cuisine: formatKinds(r.kinds), status: tab }));
-    setOtmResults([]);
-    setOtmSearch('');
+  const openEdit = (item: Restaurant) => {
+    setEditing(item);
+    setForm({ ...item, status: normalizeStatus(item.status) });
+    setModalOpen(true);
   };
 
   const handleMapsUrl = (url: string) => {
@@ -101,15 +94,30 @@ export default function RestaurantsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (form.source !== 'opentripmap' && !form.maps_url && !form.tiktok_url) {
+    if (!form.name?.trim()) {
+      setLinkError('Il nome del ristorante è obbligatorio');
+      return;
+    }
+
+    if (!form.maps_url && !form.tiktok_url) {
       setLinkError('Inserisci almeno un link (Google Maps o TikTok)');
       return;
     }
+
     setLinkError(null);
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setSaving(false); return; }
-    const raw = { ...form, trip_id: tripId, user_id: user.id };
+    const status = normalizeStatus(form.status as Restaurant['status']);
+    const raw = {
+      ...form,
+      name: form.name?.trim() ?? '',
+      status,
+      source: 'manual' as const,
+      external_id: null,
+      trip_id: tripId,
+      user_id: user.id,
+    };
     const payload = Object.fromEntries(
       Object.entries(raw).map(([k, v]) => [k, v === '' ? null : v])
     );
@@ -127,12 +135,20 @@ export default function RestaurantsPage() {
     load();
   };
 
-  const tabItems = items.filter(i => i.status === tab);
+  const filteredItems = items.filter(i => {
+    const status = normalizeStatus(i.status);
+    return view === 'all' ? true : status === view;
+  });
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
-      <Link href={`/trip/${tripId}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-primary-800 bg-sand-200 hover:bg-sand-300 rounded-lg mb-6 transition-colors">
-        <ArrowLeft size={15} /> Torna al viaggio
+      <Link
+        href={`/trip/${tripId}`}
+        aria-label="Torna al viaggio"
+        title="Torna al viaggio"
+        className="inline-flex items-center text-slate-600 hover:text-slate-900 mb-6 transition-colors"
+      >
+        <ArrowLeft size={18} strokeWidth={2.3} />
       </Link>
 
       <div className="flex items-center justify-between mb-6">
@@ -150,15 +166,17 @@ export default function RestaurantsPage() {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6">
-        {TABS.map(t => (
+        {VIEW_TABS.map(t => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`tab-btn ${tab === t.key ? 'tab-btn-active' : 'tab-btn-inactive'}`}
+            onClick={() => setView(t.key)}
+            className={`tab-btn ${view === t.key ? 'tab-btn-active' : 'tab-btn-inactive'}`}
           >
             {t.label}
-            <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${tab === t.key ? 'bg-white/20' : 'bg-gray-100'}`}>
-              {items.filter(i => i.status === t.key).length}
+            <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${view === t.key ? 'bg-white/20' : 'bg-gray-100'}`}>
+              {t.key === 'all'
+                ? items.length
+                : items.filter(i => normalizeStatus(i.status) === t.key).length}
             </span>
           </button>
         ))}
@@ -166,16 +184,16 @@ export default function RestaurantsPage() {
 
       {loading ? (
         <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="card h-20 animate-pulse bg-sand-200" />)}</div>
-      ) : tabItems.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <EmptyState
           icon={Utensils}
-          title={`Nessun ristorante in "${TABS.find(t => t.key === tab)?.label}"`}
-          description={TABS.find(t => t.key === tab)?.desc}
+          title={`Nessun ristorante in "${VIEW_TABS.find(t => t.key === view)?.label}"`}
+          description={VIEW_TABS.find(t => t.key === view)?.desc}
           action={{ label: 'Aggiungi ristorante', onClick: openAdd }}
         />
       ) : (
         <div className="space-y-3">
-          {tabItems.map(item => (
+          {filteredItems.map(item => (
             <div key={item.id} className="card p-5 flex gap-4 items-start">
               <div className="text-2xl flex-shrink-0">🍽️</div>
               <div className="flex-1 min-w-0">
@@ -184,9 +202,9 @@ export default function RestaurantsPage() {
                     ? <span className="font-semibold text-gray-900">{item.name}</span>
                     : <span className="font-semibold text-gray-400 italic">Senza nome</span>
                   }
+                  <span className="badge bg-slate-100 text-slate-700">{normalizeStatus(item.status) === 'booked' ? 'Prenotati' : 'Salvati'}</span>
                   {item.price_range && <span className="badge bg-orange-100 text-orange-700">{item.price_range}</span>}
                   {item.cuisine    && <span className="badge bg-gray-100 text-gray-600">{item.cuisine}</span>}
-                  {item.source === 'opentripmap' && <span className="badge bg-emerald-100 text-emerald-700">OpenTripMap</span>}
                 </div>
                 {item.address && <p className="text-xs text-gray-500 mt-0.5">{item.address}</p>}
                 <div className="mt-0.5 text-xs text-gray-400 flex flex-wrap gap-3">
@@ -221,39 +239,20 @@ export default function RestaurantsPage() {
       {modalOpen && (
         <Modal title={editing ? 'Modifica ristorante' : 'Aggiungi ristorante'} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSave} className="space-y-4">
-            {/* OTM Search */}
-            {!editing && trip?.lat && trip?.lon && (
-              <div className="form-group">
-                <label className="label">Cerca su OpenTripMap</label>
-                <div className="relative">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    value={otmSearch}
-                    onChange={e => setOtmSearch(e.target.value)}
-                    className="input pl-9 pr-8"
-                    placeholder="Cerca ristoranti vicino alla destinazione..."
-                  />
-                  {otmLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />}
-                </div>
-                {otmResults.length > 0 && (
-                  <div className="mt-1 bg-white border border-gray-200 rounded-xl shadow-elevated overflow-hidden max-h-48 overflow-y-auto">
-                    {otmResults.map(r => (
-                      <button key={r.xid} type="button" onClick={() => selectOtm(r)}
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-primary-50 hover:text-primary-700 border-b border-gray-100 last:border-0 flex items-center justify-between gap-2"
-                      >
-                        <span className="font-medium">{r.name}</span>
-                        <span className="text-xs text-gray-400">{formatKinds(r.kinds)}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {!trip.lat && <p className="text-xs text-amber-600 mt-1">⚠️ Aggiungi la posizione al viaggio per usare la ricerca</p>}
-              </div>
-            )}
+            <div className="form-group">
+              <label className="label">Nome *</label>
+              <input
+                value={form.name ?? ''}
+                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                className="input"
+                placeholder="La Boqueria"
+                required
+              />
+            </div>
 
             {/* Link section */}
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
-              <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">🔗 Link — almeno uno obbligatorio</p>
+              <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Link — almeno uno obbligatorio</p>
               <div className="form-group mb-0">
                 <label className="label flex items-center gap-1.5"><MapPin size={13} className="text-emerald-600" /> Google Maps</label>
                 <input
@@ -282,13 +281,9 @@ export default function RestaurantsPage() {
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Dettagli opzionali</p>
               <div className="space-y-3">
                 <div className="form-group">
-                  <label className="label">Nome</label>
-                  <input value={form.name ?? ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="input" placeholder="La Boqueria" />
-                </div>
-                <div className="form-group">
                   <label className="label">Stato</label>
-                  <select value={form.status ?? 'wishlist'} onChange={e => setForm(p => ({ ...p, status: e.target.value as TabKey }))} className="input">
-                    {TABS.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                  <select value={normalizeStatus(form.status as Restaurant['status'])} onChange={e => setForm(p => ({ ...p, status: e.target.value as StatusKey }))} className="input">
+                    {STATUS_OPTIONS.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -308,7 +303,7 @@ export default function RestaurantsPage() {
                   <label className="label">Indirizzo</label>
                   <input value={form.address ?? ''} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} className="input" placeholder="Carrer de la Boqueria, Barcellona" />
                 </div>
-                {(form.status === 'booked') && (
+                {(normalizeStatus(form.status as Restaurant['status']) === 'booked') && (
                   <div className="grid grid-cols-2 gap-3">
                     <div className="form-group">
                       <label className="label">Data prenotazione</label>

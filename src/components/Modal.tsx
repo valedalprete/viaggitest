@@ -34,22 +34,22 @@ export default function Modal({ title, onClose, children, size = 'md' }: ModalPr
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/35 backdrop-blur-sm"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      <div className={`bg-[#fefcf8] border border-sand-200 rounded-2xl shadow-elevated w-full ${sizeClass} max-h-[90vh] flex flex-col overflow-hidden`}>
+      <div className={`bg-[#fcfdff] border border-slate-200 rounded-3xl shadow-elevated w-full ${sizeClass} max-h-[90vh] flex flex-col overflow-hidden`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-primary-900 rounded-t-2xl">
-          <h2 className="text-base font-bold text-white">{title}</h2>
+        <div className="flex items-center justify-between px-6 py-4 bg-white/90 border-b border-slate-200 rounded-t-3xl flex-shrink-0">
+          <h2 className="text-base font-bold text-slate-900">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <X size={18} />
           </button>
         </div>
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Content - scrollable, sides stay fixed */}
+        <div className="modal-body flex-1 overflow-y-auto overflow-x-hidden px-6 pt-6 pb-6 bg-gradient-to-b from-white to-[#f8fbff]">
           {children}
         </div>
       </div>

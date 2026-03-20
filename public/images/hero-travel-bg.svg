@@ -1,0 +1,31 @@
+<svg width="1600" height="700" viewBox="0 0 1600 700" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="700" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2B577E"/>
+      <stop offset="1" stop-color="#5D8AA8"/>
+    </linearGradient>
+    <linearGradient id="layer1" x1="0" y1="380" x2="1600" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#40688B"/>
+      <stop offset="1" stop-color="#7AA1BA"/>
+    </linearGradient>
+    <linearGradient id="layer2" x1="0" y1="460" x2="1600" y2="690" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2F4E69"/>
+      <stop offset="1" stop-color="#5D839E"/>
+    </linearGradient>
+    <filter id="blur" x="-50" y="-50" width="1700" height="800" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="700" fill="url(#bg)"/>
+
+  <g opacity="0.3" filter="url(#blur)">
+    <circle cx="280" cy="170" r="170" fill="#B7D7E8"/>
+    <circle cx="1370" cy="120" r="150" fill="#A8CBDF"/>
+  </g>
+
+  <path d="M0 430C120 380 210 340 330 365C440 390 540 470 660 470C780 470 850 410 980 395C1100 380 1240 425 1360 450C1460 472 1540 468 1600 455V700H0V430Z" fill="url(#layer1)" opacity="0.9"/>
+  <path d="M0 520C150 500 230 445 360 465C480 482 590 560 720 560C860 560 950 490 1080 500C1210 510 1350 568 1600 548V700H0V520Z" fill="url(#layer2)"/>
+
+  <rect width="1600" height="700" fill="url(#bg)" opacity="0.08"/>
+</svg>

@@ -50,11 +50,14 @@ export interface Accommodation {
   type: 'hotel' | 'airbnb' | 'hostel' | 'apartment' | 'villa' | 'camping' | 'other';
   address: string | null;
   checkin_date: string | null;
+  checkin_time: string | null;
   checkout_date: string | null;
+  checkout_time: string | null;
   price_per_night: number | null;
   price_type: 'per_night' | 'total';
   booking_ref: string | null;
   booking_url: string | null;
+  maps_url: string | null;
   notes: string | null;
   created_at: string;
 }
@@ -87,7 +90,9 @@ export interface Place {
   address: string | null;
   lat: number | null;
   lon: number | null;
-  status: 'chosen' | 'wishlist' | 'suggested';
+  status: 'booked' | 'wishlist' | 'suggested' | 'chosen';
+  booking_date: string | null;
+  booking_time: string | null;
   source: 'manual' | 'opentripmap';
   external_id: string | null;
   description: string | null;
@@ -127,6 +132,8 @@ export interface DiaryEntry {
   trip_id: string;
   user_id: string;
   day_date: string; // 'YYYY-MM-DD'
+  author_name: string | null;
+  visibility: 'public' | 'private';
   title: string | null;
   content: string | null;
   mood: 1 | 2 | 3 | 4 | 5 | null;
@@ -165,6 +172,42 @@ export interface CarRental {
   price_total: number | null;
   booking_ref: string | null;
   notes: string | null;
+  created_at: string;
+}
+
+export interface FlightAttachment {
+  id: string;
+  trip_id: string;
+  flight_id: string;
+  uploaded_by: string;
+  storage_path: string;
+  file_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  created_at: string;
+}
+
+export interface TransportAttachment {
+  id: string;
+  trip_id: string;
+  transport_id: string;
+  uploaded_by: string;
+  storage_path: string;
+  file_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  created_at: string;
+}
+
+export interface PlaceAttachment {
+  id: string;
+  trip_id: string;
+  place_id: string;
+  uploaded_by: string;
+  storage_path: string;
+  file_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
   created_at: string;
 }
 

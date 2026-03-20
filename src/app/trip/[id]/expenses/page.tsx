@@ -307,8 +307,13 @@ export default function ExpensesPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
-      <Link href={`/trip/${tripId}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-primary-800 bg-sand-200 hover:bg-sand-300 rounded-lg mb-6 transition-colors">
-        <ArrowLeft size={15} /> Torna al viaggio
+      <Link
+        href={`/trip/${tripId}`}
+        aria-label="Torna al viaggio"
+        title="Torna al viaggio"
+        className="inline-flex items-center text-slate-600 hover:text-slate-900 mb-6 transition-colors"
+      >
+        <ArrowLeft size={18} strokeWidth={2.3} />
       </Link>
 
       <div className="flex items-center justify-between mb-6">

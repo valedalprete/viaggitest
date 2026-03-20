@@ -3,10 +3,17 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Plane } from 'lucide-react';
+import { Rubik } from 'next/font/google';
 import { createClient } from '@/lib/supabase/client';
 import { Trip, TripRole } from '@/lib/types';
 import TripCard from '@/components/TripCard';
 import EmptyState from '@/components/EmptyState';
+
+const rubik = Rubik({
+  subsets: ['latin'],
+  weight: ['600', '700'],
+  display: 'swap',
+});
 
 interface TripWithRole extends Trip {
   myRole: TripRole;
@@ -78,30 +85,40 @@ export default function DashboardPage() {
 
   const ownTrips = trips.filter(t => t.myRole === 'owner');
   const sharedTrips = trips.filter(t => t.myRole !== 'owner');
+  const totalTrips = trips.length;
 
   return (
-    <div>
+    <div className="relative overflow-hidden">
       {/* Hero Banner */}
-      <div className="bg-gradient-to-br from-primary-900 via-primary-800 to-teal-700 text-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 md:py-16">
-          <div className="flex items-end justify-between gap-6">
+      <div className="relative isolate text-white overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1701603240628-2df86bb7606c?q=80&w=1600&auto=format&fit=crop')" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0b3b7a]/55 via-[#1354a2]/40 to-[#0b2e5f]/70" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.35),transparent_35%)]" />
+        <div className="absolute -top-20 -right-8 h-64 w-64 rounded-full bg-white/20 blur-3xl" />
+
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-14 md:py-20">
+          <div className="grid lg:grid-cols-[1fr_auto] gap-8 items-end">
             <div>
-              <p className="text-amber-400 text-xs font-bold uppercase tracking-[0.15em] mb-3">
-                Il tuo pianificatore di viaggi
+              <p className="text-cyan-100 text-xs font-bold uppercase tracking-[0.2em] mb-3">
+                Your travel planner
               </p>
-              <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight">
-                Dove ti porta<br />
-                il prossimo viaggio?
+              <h1 className={`${rubik.className} text-white text-4xl sm:text-6xl font-bold leading-[0.98] drop-shadow-md`}>
+                Discover Your<br />
+                Next Stop
               </h1>
-              <p className="text-white/60 text-sm mt-4">
-                {trips.length === 0
+              <p className="text-white/90 text-sm sm:text-base mt-4 max-w-xl">
+                {totalTrips === 0
                   ? 'Inizia a pianificare la tua prossima avventura'
-                  : `${trips.length} ${trips.length === 1 ? 'viaggio' : 'viaggi'} • ${sharedTrips.length} condivisi`}
+                  : `${totalTrips} ${totalTrips === 1 ? 'viaggio' : 'viaggi'} • ${sharedTrips.length} condivisi`}
               </p>
             </div>
+
             <Link
               href="/trip/new"
-              className="hidden sm:flex items-center gap-2 px-5 py-3 bg-amber-400 hover:bg-amber-300 text-primary-900 font-bold text-sm rounded-xl transition-colors shadow-lg flex-shrink-0"
+              className="hidden sm:inline-flex items-center gap-2 text-white/95 hover:text-white font-bold text-base sm:text-lg transition-colors drop-shadow-md flex-shrink-0"
             >
               <Plus size={16} /> Nuovo viaggio
             </Link>
@@ -110,10 +127,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-12">
         {/* Mobile CTA */}
         <div className="flex sm:hidden justify-end mb-6">
-          <Link href="/trip/new" className="btn-primary">
+          <Link href="/trip/new" className="inline-flex items-center gap-1.5 text-primary-700 hover:text-primary-800 font-semibold text-sm">
             <Plus size={16} /> Nuovo viaggio
           </Link>
         </div>
@@ -129,7 +146,7 @@ export default function DashboardPage() {
           <>
             {/* Own trips */}
             {ownTrips.length > 0 && (
-              <div className="mb-10">
+              <div className="mb-10 rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-sm p-4 sm:p-5">
                 {sharedTrips.length > 0 && (
                   <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-4">I miei viaggi</h2>
                 )}
@@ -143,7 +160,7 @@ export default function DashboardPage() {
 
             {/* Shared trips */}
             {sharedTrips.length > 0 && (
-              <div>
+              <div className="rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-sm p-4 sm:p-5">
                 <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-4">Condivisi con me</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   {sharedTrips.map(trip => (

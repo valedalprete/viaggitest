@@ -72,25 +72,25 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-primary-900 sticky top-0 z-40 shadow-elevated">
+    <nav className="bg-white/85 border-b border-sand-200 sticky top-0 z-40 shadow-soft backdrop-blur-md">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 bg-amber-400 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105">
-              <Plane size={18} className="text-primary-900" />
+            <div className="w-9 h-9 bg-primary-100 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105">
+              <Plane size={18} className="text-primary-700" />
             </div>
-            <span className="text-lg font-extrabold text-white tracking-tight">Viaggi</span>
+            <span className="text-lg font-extrabold text-slate-900 tracking-tight">Viaggi</span>
           </Link>
 
           {/* User */}
           <div className="flex items-center gap-2">
             <Link
               href="/profile"
-              className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/10"
+              className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition-colors px-3 py-1.5 rounded-lg hover:bg-sand-100"
             >
-              <div className="w-7 h-7 rounded-full bg-amber-400 flex items-center justify-center flex-shrink-0">
-                <span className="text-primary-900 font-bold text-xs">{initials}</span>
+              <div className="w-7 h-7 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-primary-700 font-bold text-xs">{initials}</span>
               </div>
               <span className="hidden sm:inline max-w-[160px] truncate">
                 {displayName}
@@ -99,7 +99,7 @@ export default function Navbar() {
             <button
               onClick={handleLogout}
               title="Esci"
-              className="flex items-center gap-1.5 text-sm text-white/60 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/10"
+              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors px-3 py-1.5 rounded-lg hover:bg-sand-100"
             >
               <LogOut size={14} />
               <span className="hidden sm:inline">Esci</span>

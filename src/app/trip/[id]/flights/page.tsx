@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Plane, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Plane, Edit, Trash2, MoreVertical } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Flight } from '@/lib/types';
-import { formatDateTime, formatCurrency } from '@/lib/utils';
+import { formatDateTime, formatCurrency, formatTime } from '@/lib/utils';
 import Modal from '@/components/Modal';
 import EmptyState from '@/components/EmptyState';
 import TicketAttachments from '@/components/TicketAttachments';
@@ -32,6 +32,8 @@ export default function FlightsPage() {
   const [editing, setEditing] = useState<Flight | null>(null);
   const [form, setForm] = useState<Partial<Flight>>(empty());
   const [saving, setSaving] = useState(false);
+  const [expandedFlightId, setExpandedFlightId] = useState<string | null>(null);
+  const [openFlightMenuId, setOpenFlightMenuId] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -107,32 +109,118 @@ export default function FlightsPage() {
       ) : (
         <div className="space-y-3">
           {flights.map(f => (
-            <div key={f.id} className="card p-5 flex gap-4 items-start">
-              <div className="w-9 h-9 rounded-xl bg-sky-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Plane size={16} className="text-sky-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="badge bg-sky-100 text-sky-700">{typeLabel(f.type)}</span>
-                  {f.airline && <span className="text-sm font-medium text-gray-800">{f.airline}</span>}
-                  {f.flight_number && <span className="text-sm text-gray-500">{f.flight_number}</span>}
+            <div key={f.id} className="card">
+              {/* Preview row — clickable to expand */}
+              <button
+                type="button"
+                onClick={() => {
+                  setExpandedFlightId(prev => prev === f.id ? null : f.id);
+                  setOpenFlightMenuId(null);
+                }}
+                className="w-full text-left p-3 flex items-center gap-3"
+              >
+                <div className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center flex-shrink-0">
+                  <Plane size={15} className="text-sky-600" />
                 </div>
-                <div className="mt-1 text-sm text-gray-700 font-medium">
-                  {f.from_airport} → {f.to_airport}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-gray-900">{f.from_airport}</span>
+                    <span className="text-xs text-gray-400">→</span>
+                    <span className="text-sm font-semibold text-gray-900">{f.to_airport}</span>
+                  </div>
+                  {f.airline && (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {f.airline} {f.flight_number ? `· ${f.flight_number}` : ''}
+                    </p>
+                  )}
                 </div>
-                <div className="mt-0.5 text-xs text-gray-400 flex flex-wrap gap-3">
-                  {f.departure_at && <span>Partenza: {formatDateTime(f.departure_at)}</span>}
-                  {f.arrival_at   && <span>Arrivo: {formatDateTime(f.arrival_at)}</span>}
-                  {f.price != null && <span className="text-primary-600 font-medium">{formatCurrency(f.price)}</span>}
-                  {f.booking_ref  && <span>Ref: <span className="font-mono">{f.booking_ref}</span></span>}
+                {f.departure_at && (
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-xs text-gray-400">{f.departure_at.split('T')[0]}</p>
+                    <p className="text-sm font-semibold text-gray-900">{formatTime(f.departure_at)}</p>
+                  </div>
+                )}
+              </button>
+
+              {/* Expanded details */}
+              {expandedFlightId === f.id && (
+                <div className="px-3 pb-3 pt-1 border-t border-sand-200 space-y-3">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Partenza</p>
+                      <p className="text-gray-900 font-medium mt-0.5">{f.from_airport}</p>
+                      {f.departure_at && <p className="text-xs text-gray-500">{formatDateTime(f.departure_at)}</p>}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Arrivo</p>
+                      <p className="text-gray-900 font-medium mt-0.5">{f.to_airport}</p>
+                      {f.arrival_at && <p className="text-xs text-gray-500">{formatDateTime(f.arrival_at)}</p>}
+                    </div>
+                  </div>
+
+                  {f.price != null && (
+                    <div className="text-sm">
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Prezzo</p>
+                      <p className="text-primary-600 font-bold">{formatCurrency(f.price)}</p>
+                    </div>
+                  )}
+
+                  {f.booking_ref && (
+                    <div className="text-sm">
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Codice</p>
+                      <p className="font-mono text-gray-900">{f.booking_ref}</p>
+                    </div>
+                  )}
+
+                  {f.notes && (
+                    <div className="text-sm">
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Note</p>
+                      <p className="text-gray-600 text-xs italic">{f.notes}</p>
+                    </div>
+                  )}
+
+                  <TicketAttachments module="flight" tripId={tripId} recordId={f.id} />
+
+                  {/* Three-dot menu */}
+                  <div className="flex gap-2 pt-2 border-t border-sand-100">
+                    <div className="relative ml-auto">
+                      <button
+                        type="button"
+                        onClick={() => setOpenFlightMenuId(prev => prev === f.id ? null : f.id)}
+                        className="p-1 text-slate-500 hover:text-slate-700 transition-colors"
+                        aria-label="Azioni volo"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+
+                      {openFlightMenuId === f.id && (
+                        <div className="absolute right-0 top-8 z-20 w-32 rounded-xl border border-slate-200 bg-white shadow-elevated p-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenFlightMenuId(null);
+                              openEdit(f);
+                            }}
+                            className="w-full text-left px-2.5 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                          >
+                            <Edit size={13} /> Modifica
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenFlightMenuId(null);
+                              handleDelete(f);
+                            }}
+                            className="w-full text-left px-2.5 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          >
+                            <Trash2 size={13} /> Elimina
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                {f.notes && <p className="mt-1 text-xs text-gray-400 italic">{f.notes}</p>}
-                <TicketAttachments module="flight" tripId={tripId} recordId={f.id} />
-              </div>
-              <div className="flex gap-1.5 flex-shrink-0">
-                <button onClick={() => openEdit(f)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-sand-200"><Edit size={14} /></button>
-                <button onClick={() => handleDelete(f)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={14} /></button>
-              </div>
+              )}
             </div>
           ))}
         </div>

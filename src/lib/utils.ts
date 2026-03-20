@@ -22,8 +22,12 @@ export function formatDateRange(start: string, end: string): string {
 
 export function formatDateTime(datetimeStr: string | null | undefined): string {
   if (!datetimeStr) return '—';
-  const date = new Date(datetimeStr);
-  return date.toLocaleString('it-IT', {
+  const [date, time] = datetimeStr.split('T');
+  if (!time) return formatDate(date);
+  const [year, month, day] = date.split('-');
+  const [hour, minute] = time.split(':');
+  const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
+  return d.toLocaleString('it-IT', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
@@ -31,8 +35,9 @@ export function formatDateTime(datetimeStr: string | null | undefined): string {
 
 export function formatTime(datetimeStr: string | null | undefined): string {
   if (!datetimeStr) return '—';
-  const date = new Date(datetimeStr);
-  return date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  const time = datetimeStr.includes('T') ? datetimeStr.split('T')[1] : datetimeStr;
+  const [hour, minute] = time.split(':');
+  return `${hour}:${minute}`;
 }
 
 // =============================================

@@ -175,6 +175,19 @@ export interface CarRental {
   created_at: string;
 }
 
+export interface TripLiveLocation {
+  id: string;
+  trip_id: string;
+  user_id: string;
+  lat: number | null;
+  lon: number | null;
+  accuracy_m: number | null;
+  sharing_enabled: boolean;
+  last_shared_at: string | null;
+  expires_at: string | null;
+  updated_at: string;
+}
+
 export interface FlightAttachment {
   id: string;
   trip_id: string;

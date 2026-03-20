@@ -105,7 +105,7 @@ export default function DashboardPage() {
               <p className="text-cyan-100 text-xs font-bold uppercase tracking-[0.2em] mb-3">
                 Your travel planner
               </p>
-              <h1 className={`${rubik.className} text-white text-4xl sm:text-6xl font-bold leading-[0.98] drop-shadow-md`}>
+              <h1 className={`${rubik.className} text-white text-5xl sm:text-7xl font-bold leading-[0.98] drop-shadow-md`}>
                 Discover Your<br />
                 Next Stop
               </h1>

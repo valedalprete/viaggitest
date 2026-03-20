@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Plus, Edit, Trash2, Users, Receipt, BarChart2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, Users, Receipt, BarChart2, Loader2, MoreVertical } from 'lucide-react';
 import Link from 'next/link';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { createClient } from '@/lib/supabase/client';
@@ -68,6 +68,8 @@ export default function ExpensesPage() {
   const [settlements, setSettlements] = useState<DbSettlement[]>([]);
   const [settlingIds, setSettlingIds] = useState<Set<string>>(new Set());
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [expandedExpenseId, setExpandedExpenseId] = useState<string | null>(null);
+  const [openExpenseMenuId, setOpenExpenseMenuId] = useState<string | null>(null);
   const [partialAmount, setPartialAmount] = useState<string>('');
 
   const [form, setForm] = useState<{
@@ -286,6 +288,19 @@ export default function ExpensesPage() {
     return { participantId: p.id, name: p.name, amount: paid - owed };
   });
 
+  const spendByPerson = participants.map(p => {
+    const totalShare = expenses.reduce((sum, e) => {
+      return sum + e.splits
+        .filter(sp => sp.participant_id === p.id)
+        .reduce((s, sp) => s + Number(sp.owed_amount), 0);
+    }, 0);
+    return {
+      participantId: p.id,
+      name: p.name,
+      totalShare,
+    };
+  });
+
   // Raw debts from expenses (no settlements applied)
   const rawDebts = simplifyDebts(balances);
 
@@ -303,7 +318,6 @@ export default function ExpensesPage() {
   const remainingDebts = simplifyDebts(adjustedBalances);
 
   const catLabel = (v: string) => EXPENSE_CATEGORIES.find(c => c.value === v)?.label ?? v;
-  const catIcon  = (v: string) => EXPENSE_CATEGORIES.find(c => c.value === v)?.icon  ?? '💰';
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
@@ -383,34 +397,80 @@ export default function ExpensesPage() {
         ) : (
           <div className="space-y-3">
             {expenses.map(exp => (
-              <div key={exp.id} className="card p-4 flex gap-4 items-start">
-                <div className="text-xl flex-shrink-0">{catIcon(exp.category)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-gray-900">{exp.description}</span>
-                    <span className="text-base font-bold text-primary-600">{formatCurrency(Number(exp.amount))}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    <span className="badge bg-gray-100 text-gray-600">{catLabel(exp.category)}</span>
-                    {exp.date && <span className="text-xs text-gray-500">{formatDateShort(exp.date)}</span>}
-                    {exp.paid_by_participant_id && (
-                      <span className="text-xs text-gray-500">Pagato da <strong>{participantName(exp.paid_by_participant_id)}</strong></span>
+              <div key={exp.id} className="card p-3">
+                <div className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExpandedExpenseId(prev => prev === exp.id ? null : exp.id);
+                      setOpenExpenseMenuId(null);
+                    }}
+                    className="flex-1 min-w-0 text-left"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-gray-700 truncate pr-2">{exp.description}</span>
+                      <span className="text-base font-bold text-primary-600 flex-shrink-0">{formatCurrency(Number(exp.amount))}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {exp.date ? formatDateShort(exp.date) : '—'}
+                      {exp.paid_by_participant_id ? ` · Pagato da ${participantName(exp.paid_by_participant_id)}` : ''}
+                    </p>
+                  </button>
+
+                  <div className="relative flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setOpenExpenseMenuId(prev => prev === exp.id ? null : exp.id)}
+                      className="p-1 text-slate-500 hover:text-slate-700 transition-colors"
+                      aria-label="Azioni spesa"
+                    >
+                      <MoreVertical size={14} className="text-slate-600" />
+                    </button>
+
+                    {openExpenseMenuId === exp.id && (
+                      <div className="absolute right-0 top-9 z-20 w-36 rounded-xl border border-slate-200 bg-white shadow-elevated p-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenExpenseMenuId(null);
+                            openEdit(exp);
+                          }}
+                          className="w-full text-left px-2.5 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                        >
+                          <Edit size={13} /> Modifica
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenExpenseMenuId(null);
+                            handleDelete(exp);
+                          }}
+                          className="w-full text-left px-2.5 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                        >
+                          <Trash2 size={13} /> Elimina
+                        </button>
+                      </div>
                     )}
                   </div>
-                  {exp.splits.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {exp.splits.map(s => (
-                        <span key={s.id} className="text-xs text-gray-400 bg-gray-50 rounded px-1.5 py-0.5">
-                          {participantName(s.participant_id)}: {formatCurrency(Number(s.owed_amount))}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  <button onClick={() => openEdit(exp)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-sand-200"><Edit size={14} /></button>
-                  <button onClick={() => handleDelete(exp)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={14} /></button>
-                </div>
+
+                {expandedExpenseId === exp.id && (
+                  <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
+                    <p className="text-xs text-gray-500">Categoria: <span className="font-medium text-gray-700">{catLabel(exp.category)}</span></p>
+                    {exp.splits.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {exp.splits.map(s => (
+                          <div key={s.id} className="flex items-center justify-between text-sm">
+                            <span className="text-gray-700">{participantName(s.participant_id)}</span>
+                            <span className="font-semibold text-gray-900">{formatCurrency(Number(s.owed_amount))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400">Nessuna ripartizione disponibile.</p>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -423,25 +483,19 @@ export default function ExpensesPage() {
             <EmptyState icon={BarChart2} title="Nessuna spesa" description="Aggiungi spese per vedere il riepilogo" />
           ) : (
             <>
-            {/* Balance per person */}
+            {/* Spend per person */}
             <div className="card overflow-hidden mb-4">
               <div className="px-5 pt-4 pb-3 border-b border-sand-200">
-                <h3 className="font-semibold text-gray-800 text-sm">Saldi per persona</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Pagato − quota dovuta = saldo netto</p>
+                <h3 className="font-semibold text-gray-800 text-sm">Spesa per persona</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Quota totale personale calcolata dalle ripartizioni delle spese</p>
               </div>
               <div className="divide-y divide-sand-100">
-                {balances.map(b => {
-                  const paid = expenses.filter(e => e.paid_by_participant_id === b.participantId).reduce((s, e) => s + Number(e.amount), 0);
-                  const owed = expenses.reduce((s, e) => s + e.splits.filter(sp => sp.participant_id === b.participantId).reduce((ss, sp) => ss + Number(sp.owed_amount), 0), 0);
+                {spendByPerson.map(person => {
                   return (
-                    <div key={b.participantId} className="flex items-center gap-3 px-5 py-3">
-                      <span className="text-sm font-semibold text-gray-800 w-24 flex-shrink-0">{b.name}</span>
-                      <div className="flex-1 flex gap-3 text-xs text-gray-500">
-                        <span>Pagato: <strong className="text-gray-700">{formatCurrency(paid)}</strong></span>
-                        <span>Quota: <strong className="text-gray-700">{formatCurrency(owed)}</strong></span>
-                      </div>
-                      <span className={`text-sm font-bold flex-shrink-0 ${b.amount > 0.005 ? 'text-green-600' : b.amount < -0.005 ? 'text-red-500' : 'text-gray-400'}`}>
-                        {b.amount > 0.005 ? '+' : ''}{formatCurrency(b.amount)}
+                    <div key={person.participantId} className="flex items-center gap-3 px-5 py-3">
+                      <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{person.name}</span>
+                      <span className="text-sm font-bold text-gray-900 flex-shrink-0">
+                        {formatCurrency(person.totalShare)}
                       </span>
                     </div>
                   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -8,6 +8,10 @@ import { createClient } from '@/lib/supabase/client';
 import { Accommodation, CarRental, DiaryEntry, Flight, Restaurant, Transport, Trip } from '@/lib/types';
 import { getDaysArray, formatDate } from '@/lib/utils';
 import EmptyState from '@/components/EmptyState';
+import DiaryAttachments from '@/components/DiaryAttachments';
+
+const DIARY_BUCKET = 'trip-diary';
+const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 
 const MOODS: { value: 1 | 2 | 3 | 4 | 5; label: string }[] = [
   { value: 1, label: 'Faticosa' },
@@ -139,6 +143,9 @@ export default function ItineraryPage() {
   const [selectedDetailEntryId, setSelectedDetailEntryId] = useState<string | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [openEntryMenuId, setOpenEntryMenuId] = useState<string | null>(null);
+  const [pendingDiaryFiles, setPendingDiaryFiles] = useState<File[]>([]);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [flights, setFlights] = useState<Flight[]>([]);
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
@@ -262,6 +269,8 @@ export default function ItineraryPage() {
       weather: null,
     };
 
+    let targetEntryId: string | null = editingEntryId;
+
     if (editingEntryId) {
       await supabase
         .from('diary_entries')
@@ -269,7 +278,17 @@ export default function ItineraryPage() {
         .eq('id', editingEntryId)
         .eq('user_id', user.id);
     } else {
-      await supabase.from('diary_entries').insert(payload);
+      const { data: inserted } = await supabase
+        .from('diary_entries')
+        .insert(payload)
+        .select('id')
+        .single();
+      targetEntryId = inserted?.id ?? null;
+    }
+
+    if (targetEntryId && pendingDiaryFiles.length > 0) {
+      await uploadDiaryFiles(targetEntryId, pendingDiaryFiles);
+      setPendingDiaryFiles([]);
     }
 
     const { data: refreshed } = await supabase
@@ -290,6 +309,68 @@ export default function ItineraryPage() {
     setIsFormOpen(false);
     setEditingEntryId(null);
     setOpenEntryMenuId(null);
+  };
+
+  const sanitizeFileName = (name: string) => name
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9._-]/g, '')
+    .slice(-80);
+
+  const uploadDiaryFiles = async (entryId: string, files: File[]) => {
+    const { data: authData } = await supabase.auth.getUser();
+    const uid = authData.user?.id;
+    if (!uid) return;
+
+    for (const file of files) {
+      if (!file.type.startsWith('image/') || file.size > MAX_PHOTO_SIZE) continue;
+
+      const cleanName = sanitizeFileName(file.name || 'diary.jpg') || 'diary.jpg';
+      const random = Math.random().toString(36).slice(2, 8);
+      const path = `${tripId}/${entryId}/${uid}/${Date.now()}-${random}-${cleanName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(DIARY_BUCKET)
+        .upload(path, file, {
+          contentType: file.type || 'application/octet-stream',
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) continue;
+
+      const { error: insertError } = await supabase.from('diary_attachments').insert({
+        trip_id: tripId,
+        diary_entry_id: entryId,
+        uploaded_by: uid,
+        storage_path: path,
+        file_name: file.name,
+        mime_type: file.type,
+        size_bytes: file.size,
+      });
+
+      if (insertError) {
+        await supabase.storage.from(DIARY_BUCKET).remove([path]);
+      }
+    }
+  };
+
+  const onPickDiaryFiles = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0) return;
+
+    const valid = files.filter(f => f.type.startsWith('image/') && f.size <= MAX_PHOTO_SIZE);
+    if (valid.length === 0) return;
+
+    if (editingEntryId) {
+      setPhotoUploading(true);
+      await uploadDiaryFiles(editingEntryId, valid);
+      setPhotoUploading(false);
+    } else {
+      setPendingDiaryFiles(prev => [...prev, ...valid]);
+    }
+
+    if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
   const editEntry = (entry: DiaryEntry) => {
@@ -586,7 +667,7 @@ export default function ItineraryPage() {
                 <div className="card p-4 sm:p-6 form-interactive">
                   <div className="mb-5 flex items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-lg font-bold text-slate-900">Nuova pagina diario</h2>
+                      <h2 className="text-lg font-bold text-slate-900">{editingEntryId ? 'Modifica pagina diario' : 'Nuova pagina diario'}</h2>
                       <p className="text-sm text-slate-500 mt-1">{formatDate(selectedDay.date)}</p>
                     </div>
                     <div className="w-[170px] sm:w-[190px]">
@@ -603,7 +684,7 @@ export default function ItineraryPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <div className="form-group form-section">
+                    <div className="form-group">
                       <label className="label">Nome autore</label>
                       <input
                         value={selectedDay.draft.author_name}
@@ -613,7 +694,7 @@ export default function ItineraryPage() {
                       />
                     </div>
 
-                    <div className="form-group form-section">
+                    <div className="form-group">
                       <label className="label">Titolo della giornata</label>
                       <input
                         value={selectedDay.draft.title}
@@ -623,7 +704,7 @@ export default function ItineraryPage() {
                       />
                     </div>
 
-                    <div className="form-group form-section">
+                    <div className="form-group">
                       <label className="label">Valutazione della giornata</label>
                       <div className="grid grid-cols-5 gap-2">
                         {MOODS.map(m => (
@@ -645,8 +726,26 @@ export default function ItineraryPage() {
                       </div>
                     </div>
 
-                    <div className="form-group form-section">
-                      <label className="label">Descrizione della giornata</label>
+                    <div className="form-group">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="label mb-0">Descrizione della giornata</label>
+                        <button
+                          type="button"
+                          onClick={() => photoInputRef.current?.click()}
+                          className="w-7 h-7 rounded-full border border-slate-300 text-slate-600 hover:bg-slate-100"
+                          title="Aggiungi foto"
+                        >
+                          +
+                        </button>
+                        <input
+                          ref={photoInputRef}
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={onPickDiaryFiles}
+                        />
+                      </div>
                       <textarea
                         value={selectedDay.draft.description}
                         onChange={e => updateDraft(selectedDay.date, { description: e.target.value })}
@@ -654,6 +753,29 @@ export default function ItineraryPage() {
                         placeholder="Come è stata la giornata? Cosa hai fatto, visto, provato? Quali sono i momenti più belli da ricordare?"
                       />
                     </div>
+
+                    {editingEntryId ? (
+                      <div>
+                        <DiaryAttachments
+                          tripId={tripId}
+                          diaryEntryId={editingEntryId}
+                        />
+                      </div>
+                    ) : pendingDiaryFiles.length > 0 ? (
+                      <p className="text-xs text-slate-500 px-1">
+                        {pendingDiaryFiles.length} foto pronte: verranno caricate al salvataggio.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-slate-500 px-1">
+                        Aggiungi foto con il +: nelle nuove pagine verranno caricate al salvataggio.
+                      </p>
+                    )}
+
+                    {photoUploading && (
+                      <p className="text-xs text-slate-500 px-1">
+                        Caricamento foto in corso...
+                      </p>
+                    )}
 
                     <div className="flex gap-3 justify-stretch sm:justify-end">
                       <button
@@ -683,6 +805,7 @@ export default function ItineraryPage() {
               {!isFormOpen && !selectedDetailEntry && selectedDateEntries.length > 0 && (
                 <div className="card p-4 sm:p-5">
                   <h3 className="text-base font-bold text-slate-900 mb-4">Pagine diario del giorno</h3>
+                  <p className="text-xs text-slate-500 mb-3">Tocca una pagina per aprire il dettaglio e aggiungere foto.</p>
                   <div className="space-y-2">
                     {selectedDateEntries.map(entry => {
                       const canManage = entry.user_id === currentUserId;
@@ -789,6 +912,11 @@ export default function ItineraryPage() {
                         {parseDiaryContent(selectedDetailEntry.content).description}
                       </p>
                     </div>
+
+                    <DiaryAttachments
+                      tripId={tripId}
+                      diaryEntryId={selectedDetailEntry.id}
+                    />
                   </div>
                 </div>
               )}

@@ -165,3 +165,29 @@ export function generateId(): string {
 export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ');
 }
+
+export function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+export function formatRelativeTime(isoDate: string | null | undefined): string {
+  if (!isoDate) return 'mai';
+  const ts = new Date(isoDate).getTime();
+  const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (diffSec < 10) return 'ora';
+  if (diffSec < 60) return `${diffSec}s fa`;
+  const min = Math.floor(diffSec / 60);
+  if (min < 60) return `${min} min fa`;
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return `${hours} h fa`;
+  const days = Math.floor(hours / 24);
+  return `${days} g fa`;
+}

@@ -331,3 +331,18 @@ export const ROLE_COLORS: Record<TripRole, string> = {
   editor: 'bg-blue-100 text-blue-700',
   viewer: 'bg-gray-100 text-gray-600',
 };
+
+// =============================================
+// WEATHER TYPES
+// =============================================
+
+export interface WeatherForecast {
+  date: string; // 'YYYY-MM-DD'
+  tempMax: number; // °C
+  tempMin: number; // °C
+  precipitation: number; // mm
+  weatherCode: number; // WMO code
+  description: string; // 'Sunny', 'Rainy', etc.
+  iconName: string; // Lucide icon name
+  hint: string; // Context-aware message
+}

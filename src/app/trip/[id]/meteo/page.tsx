@@ -38,6 +38,18 @@ export default function MeteoPage() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [addingLocation, setAddingLocation] = useState<string | null>(null);
 
+  // Calculate date range: today to 7 days from now
+  const getDateRange = () => {
+    const today = new Date();
+    const in7Days = new Date(today);
+    in7Days.setDate(in7Days.getDate() + 7);
+    
+    const startDate = today.toISOString().split('T')[0];
+    const endDate = in7Days.toISOString().split('T')[0];
+    
+    return { startDate, endDate };
+  };
+
   // Load trip and meteo locations
   useEffect(() => {
     const load = async () => {
@@ -62,24 +74,26 @@ export default function MeteoPage() {
         if (locations) {
           setMeteoLocations(locations);
           
-          // Fetch weather for each location only if trip dates are available
-          if (tripData?.start_date && tripData?.end_date) {
-            const weatherMap = new Map<string, WeatherForecast[]>();
-            for (const loc of locations) {
-              try {
-                const forecasts = await getWeatherForecast(
-                  loc.latitude,
-                  loc.longitude,
-                  tripData.start_date,
-                  tripData.end_date
-                );
-                weatherMap.set(loc.id, forecasts);
-              } catch (error) {
-                console.error(`Error fetching weather for ${loc.destination_name}:`, error);
-              }
+          // Fetch weather for each location using today + 7 days range
+          const { startDate, endDate } = getDateRange();
+          const weatherMap = new Map<string, WeatherForecast[]>();
+          
+          for (const loc of locations) {
+            try {
+              console.log(`Fetching weather for ${loc.destination_name}:`, { startDate, endDate });
+              const forecasts = await getWeatherForecast(
+                loc.latitude,
+                loc.longitude,
+                startDate,
+                endDate
+              );
+              console.log(`Weather loaded for ${loc.destination_name}:`, forecasts.length, 'days');
+              weatherMap.set(loc.id, forecasts);
+            } catch (error) {
+              console.error(`Error fetching weather for ${loc.destination_name}:`, error);
             }
-            setWeatherData(weatherMap);
           }
+          setWeatherData(weatherMap);
         }
       }
 
@@ -127,13 +141,6 @@ export default function MeteoPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Ensure we have valid dates before proceeding
-    if (!trip || !trip.start_date || !trip.end_date) {
-      console.error('Trip data missing:', trip);
-      alert('Errore: dati del viaggio non disponibili');
-      return;
-    }
-
     setAddingLocation(result.name);
 
     try {
@@ -152,11 +159,9 @@ export default function MeteoPage() {
       if (data) {
         setMeteoLocations([...meteoLocations, data]);
         
-        // Fetch weather for this location
+        // Fetch weather for this location using today + 7 days range
         try {
-          // Use trip dates directly (already validated above)
-          const startDate = trip.start_date;
-          const endDate = trip.end_date;
+          const { startDate, endDate } = getDateRange();
           
           console.log('Fetching weather for:', {
             name: result.name,

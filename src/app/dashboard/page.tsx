@@ -21,6 +21,7 @@ interface TripWithRole extends Trip {
 
 export default function DashboardPage() {
   const [trips, setTrips] = useState<TripWithRole[]>([]);
+  const [hiddenTrips, setHiddenTrips] = useState<TripWithRole[]>([]);
   const [loading, setLoading] = useState(true);
 
   const hideTripFromDashboard = async (tripId: string) => {
@@ -32,7 +33,33 @@ export default function DashboardPage() {
       .from('hidden_trips')
       .upsert({ user_id: user.id, trip_id: tripId }, { onConflict: 'user_id,trip_id' });
 
-    setTrips(prev => prev.filter(t => t.id !== tripId));
+    setTrips(prev => {
+      const tripToHide = prev.find(t => t.id === tripId);
+      if (tripToHide) {
+        setHiddenTrips(h => [tripToHide, ...h.filter(x => x.id !== tripToHide.id)]);
+      }
+      return prev.filter(t => t.id !== tripId);
+    });
+  };
+
+  const restoreTripToDashboard = async (tripId: string) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from('hidden_trips')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('trip_id', tripId);
+
+    setHiddenTrips(prev => {
+      const tripToRestore = prev.find(t => t.id === tripId);
+      if (tripToRestore) {
+        setTrips(v => [tripToRestore, ...v.filter(x => x.id !== tripToRestore.id)]);
+      }
+      return prev.filter(t => t.id !== tripId);
+    });
   };
 
   useEffect(() => {
@@ -72,25 +99,27 @@ export default function DashboardPage() {
           .map(m => m.trip_id)
           .filter(tripId => !hiddenIds.has(tripId));
 
-        if (tripIds.length === 0) {
-          setTrips([]);
-          return;
-        }
+        const hiddenTripIds = memberships
+          .map(m => m.trip_id)
+          .filter(tripId => hiddenIds.has(tripId));
 
-        const { data: tripsData } = await supabase
-          .from('trips')
-          .select('*')
-          .in('id', tripIds)
-          .order('start_date', { ascending: false });
+        const [visibleRes, hiddenRes] = await Promise.all([
+          tripIds.length > 0
+            ? supabase.from('trips').select('*').in('id', tripIds).order('start_date', { ascending: false })
+            : Promise.resolve({ data: [] as Trip[] }),
+          hiddenTripIds.length > 0
+            ? supabase.from('trips').select('*').in('id', hiddenTripIds).order('start_date', { ascending: false })
+            : Promise.resolve({ data: [] as Trip[] }),
+        ]);
 
-        setTrips(
-          (tripsData ?? []).map(t => ({ ...t, myRole: roleMap[t.id] ?? 'viewer' }))
-        );
+        setTrips((visibleRes.data ?? []).map(t => ({ ...t, myRole: roleMap[t.id] ?? 'viewer' })));
+        setHiddenTrips((hiddenRes.data ?? []).map(t => ({ ...t, myRole: roleMap[t.id] ?? 'viewer' })));
       } finally {
         setLoading(false);
       }
     }).catch(() => {
       setTrips([]);
+      setHiddenTrips([]);
       setLoading(false);
     });
   }, []);
@@ -162,7 +191,7 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {trips.length === 0 ? (
+        {trips.length === 0 && hiddenTrips.length === 0 ? (
           <EmptyState
             icon={Plane}
             title="Nessun viaggio ancora"
@@ -196,6 +225,22 @@ export default function DashboardPage() {
                       trip={trip}
                       myRole={trip.myRole}
                       onHideFromDashboard={() => hideTripFromDashboard(trip.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {hiddenTrips.length > 0 && (
+              <div className="mt-10 rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-sm p-4 sm:p-5">
+                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-4">Archiviati</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {hiddenTrips.map(trip => (
+                    <TripCard
+                      key={trip.id}
+                      trip={trip}
+                      myRole={trip.myRole}
+                      onRestoreToDashboard={() => restoreTripToDashboard(trip.id)}
                     />
                   ))}
                 </div>

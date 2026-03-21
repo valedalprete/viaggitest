@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Calendar, Clock, Users, EyeOff } from 'lucide-react';
+import { MapPin, Calendar, Clock, Users, EyeOff, Eye } from 'lucide-react';
 import { Trip, TripRole } from '@/lib/types';
 import { formatDateRange, getCountdownText, getTripStatus, getTripDuration } from '@/lib/utils';
 
@@ -8,6 +8,7 @@ interface TripCardProps {
   trip: Trip;
   myRole?: TripRole;
   onHideFromDashboard?: () => void;
+  onRestoreToDashboard?: () => void;
 }
 
 const COVER_GRADIENTS = [
@@ -24,7 +25,7 @@ function getCoverGradient(id: string) {
   return COVER_GRADIENTS[index];
 }
 
-export default function TripCard({ trip, myRole, onHideFromDashboard }: TripCardProps) {
+export default function TripCard({ trip, myRole, onHideFromDashboard, onRestoreToDashboard }: TripCardProps) {
   const status = getTripStatus(trip.start_date, trip.end_date);
   const countdown = getCountdownText(trip.start_date, trip.end_date);
   const duration = getTripDuration(trip.start_date, trip.end_date);
@@ -62,18 +63,6 @@ export default function TripCard({ trip, myRole, onHideFromDashboard }: TripCard
                 {myRole === 'editor' ? 'Editor' : 'Visualizzatore'}
               </span>
             )}
-            {myRole && myRole !== 'owner' && onHideFromDashboard && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onHideFromDashboard();
-                }}
-                className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold bg-white/90 text-slate-700 hover:bg-white shadow-soft"
-              >
-                <EyeOff size={11} /> Nascondi
-              </button>
-            )}
           </div>
           {/* Destination */}
           <div className="absolute bottom-4 left-4 right-4">
@@ -102,6 +91,35 @@ export default function TripCard({ trip, myRole, onHideFromDashboard }: TripCard
           {status !== 'past' && (
             <div className="mt-3 pt-3 border-t border-sand-200">
               <p className="text-sm font-semibold text-primary-700">{countdown}</p>
+            </div>
+          )}
+
+          {(onHideFromDashboard || onRestoreToDashboard) && (
+            <div className="mt-3 pt-3 border-t border-sand-200">
+              {onHideFromDashboard && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onHideFromDashboard();
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                >
+                  <EyeOff size={12} /> Nascondi dalla dashboard
+                </button>
+              )}
+              {onRestoreToDashboard && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onRestoreToDashboard();
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:text-primary-800"
+                >
+                  <Eye size={12} /> Mostra di nuovo
+                </button>
+              )}
             </div>
           )}
         </div>

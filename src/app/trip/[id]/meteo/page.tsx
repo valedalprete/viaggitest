@@ -36,6 +36,7 @@ export default function MeteoPage() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [addingLocation, setAddingLocation] = useState<string | null>(null);
 
   // Load trip and meteo locations
   useEffect(() => {
@@ -124,6 +125,8 @@ export default function MeteoPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    setAddingLocation(result.name);
+
     try {
       const { data } = await supabase
         .from('trip_meteo_locations')
@@ -142,15 +145,28 @@ export default function MeteoPage() {
         
         // Fetch weather for this location
         try {
+          const startDate = trip?.start_date || new Date().toISOString().split('T')[0];
+          const endDate = trip?.end_date || new Date().toISOString().split('T')[0];
+          
+          console.log('Fetching weather for:', {
+            name: result.name,
+            lat: data.latitude,
+            lon: data.longitude,
+            startDate,
+            endDate,
+          });
+          
           const forecasts = await getWeatherForecast(
             data.latitude,
             data.longitude,
-            trip?.start_date || new Date().toISOString().split('T')[0],
-            trip?.end_date || new Date().toISOString().split('T')[0]
+            startDate,
+            endDate
           );
+          
+          console.log('Weather fetched:', { name: result.name, count: forecasts.length });
           setWeatherData(new Map(weatherData).set(data.id, forecasts));
         } catch (error) {
-          console.error('Error fetching weather:', error);
+          console.error('Error fetching weather for', result.name, ':', error);
         }
       }
 
@@ -159,6 +175,8 @@ export default function MeteoPage() {
       setShowDropdown(false);
     } catch (error) {
       console.error('Error adding location:', error);
+    } finally {
+      setAddingLocation(null);
     }
   };
 
@@ -232,9 +250,13 @@ export default function MeteoPage() {
                 <button
                   key={idx}
                   onClick={() => addMeteoLocation(result)}
-                  className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 transition-colors text-sm"
+                  disabled={addingLocation === result.name}
+                  className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 transition-colors text-sm disabled:opacity-50"
                 >
-                  <p className="font-medium text-slate-900">{result.name.split(',')[0]}</p>
+                  <p className="font-medium text-slate-900">
+                    {result.name.split(',')[0]}
+                    {addingLocation === result.name && ' (caricamento...)'}
+                  </p>
                   <p className="text-xs text-slate-500">{result.name.split(',').slice(1).join(',')}</p>
                 </button>
               ))}

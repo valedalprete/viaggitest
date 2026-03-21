@@ -23,6 +23,18 @@ export default function DashboardPage() {
   const [trips, setTrips] = useState<TripWithRole[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const hideTripFromDashboard = async (tripId: string) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from('hidden_trips')
+      .upsert({ user_id: user.id, trip_id: tripId }, { onConflict: 'user_id,trip_id' });
+
+    setTrips(prev => prev.filter(t => t.id !== tripId));
+  };
+
   useEffect(() => {
     const supabase = createClient();
 
@@ -34,21 +46,36 @@ export default function DashboardPage() {
       }
 
       try {
-        // Fetch memberships (includes own + shared trips via new RLS)
-        const { data: memberships } = await supabase
-          .from('trip_members')
-          .select('role, trip_id')
-          .eq('user_id', user.id);
+        // Fetch memberships + user hidden trips
+        const [{ data: memberships }, { data: hidden }] = await Promise.all([
+          supabase
+            .from('trip_members')
+            .select('role, trip_id')
+            .eq('user_id', user.id),
+          supabase
+            .from('hidden_trips')
+            .select('trip_id')
+            .eq('user_id', user.id),
+        ]);
 
         if (!memberships || memberships.length === 0) {
           setTrips([]);
           return;
         }
 
+        const hiddenIds = new Set((hidden ?? []).map(h => h.trip_id));
+
         const roleMap: Record<string, TripRole> = {};
         memberships.forEach(m => { roleMap[m.trip_id] = m.role as TripRole; });
 
-        const tripIds = memberships.map(m => m.trip_id);
+        const tripIds = memberships
+          .map(m => m.trip_id)
+          .filter(tripId => !hiddenIds.has(tripId));
+
+        if (tripIds.length === 0) {
+          setTrips([]);
+          return;
+        }
 
         const { data: tripsData } = await supabase
           .from('trips')
@@ -164,7 +191,12 @@ export default function DashboardPage() {
                 <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-4">Condivisi con me</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   {sharedTrips.map(trip => (
-                    <TripCard key={trip.id} trip={trip} myRole={trip.myRole} />
+                    <TripCard
+                      key={trip.id}
+                      trip={trip}
+                      myRole={trip.myRole}
+                      onHideFromDashboard={() => hideTripFromDashboard(trip.id)}
+                    />
                   ))}
                 </div>
               </div>

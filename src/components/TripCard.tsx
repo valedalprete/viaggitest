@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Calendar, Clock, Users } from 'lucide-react';
+import { MapPin, Calendar, Clock, Users, EyeOff } from 'lucide-react';
 import { Trip, TripRole } from '@/lib/types';
 import { formatDateRange, getCountdownText, getTripStatus, getTripDuration } from '@/lib/utils';
 
 interface TripCardProps {
   trip: Trip;
   myRole?: TripRole;
+  onHideFromDashboard?: () => void;
 }
 
 const COVER_GRADIENTS = [
@@ -23,7 +24,7 @@ function getCoverGradient(id: string) {
   return COVER_GRADIENTS[index];
 }
 
-export default function TripCard({ trip, myRole }: TripCardProps) {
+export default function TripCard({ trip, myRole, onHideFromDashboard }: TripCardProps) {
   const status = getTripStatus(trip.start_date, trip.end_date);
   const countdown = getCountdownText(trip.start_date, trip.end_date);
   const duration = getTripDuration(trip.start_date, trip.end_date);
@@ -60,6 +61,18 @@ export default function TripCard({ trip, myRole }: TripCardProps) {
                 <Users size={10} />
                 {myRole === 'editor' ? 'Editor' : 'Visualizzatore'}
               </span>
+            )}
+            {myRole && myRole !== 'owner' && onHideFromDashboard && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onHideFromDashboard();
+                }}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold bg-white/90 text-slate-700 hover:bg-white shadow-soft"
+              >
+                <EyeOff size={11} /> Nascondi
+              </button>
             )}
           </div>
           {/* Destination */}

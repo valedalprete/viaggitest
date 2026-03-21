@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   ArrowLeft, Edit, Trash2, MapPin, Calendar, Clock,
-  Plane, Hotel, Utensils, Map, BookOpen, Receipt, Bus, Car, CalendarDays, Users, LocateFixed,
+  Plane, Hotel, Utensils, Map, BookOpen, Receipt, Bus, Car, CalendarDays, Users, LocateFixed, EyeOff,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Trip, TripRole, ROLE_LABELS, ROLE_COLORS } from '@/lib/types';
@@ -44,6 +44,7 @@ export default function TripHubPage() {
   const [myRole, setMyRole] = useState<TripRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [hiding, setHiding] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -93,6 +94,22 @@ export default function TripHubPage() {
     if (!confirm('Eliminare questo viaggio? Tutti i dati verranno persi.')) return;
     setDeleting(true);
     await createClient().from('trips').delete().eq('id', id);
+    router.push('/dashboard');
+  };
+
+  const handleHideFromDashboard = async () => {
+    if (!myRole || myRole === 'owner') return;
+    if (!confirm('Nascondere questo viaggio dalla tua Dashboard? Potrai sempre riaprire il link diretto dal proprietario.')) return;
+    const supabase = createClient();
+    setHiding(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setHiding(false);
+      return;
+    }
+    await supabase
+      .from('hidden_trips')
+      .upsert({ user_id: user.id, trip_id: id }, { onConflict: 'user_id,trip_id' });
     router.push('/dashboard');
   };
 
@@ -160,6 +177,17 @@ export default function TripHubPage() {
                   className="p-2 rounded-xl bg-white/20 hover:bg-red-500/60 backdrop-blur-sm text-white transition-colors"
                 >
                   <Trash2 size={15} />
+                </button>
+              )}
+              {myRole && myRole !== 'owner' && (
+                <button
+                  onClick={handleHideFromDashboard}
+                  disabled={hiding}
+                  className="p-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white transition-colors"
+                  title="Nascondi dalla Dashboard"
+                  aria-label="Nascondi dalla Dashboard"
+                >
+                  <EyeOff size={15} />
                 </button>
               )}
             </div>

@@ -3,23 +3,46 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Cloud } from 'lucide-react';
+import { ArrowLeft, Cloud, X, Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Trip, WeatherForecast } from '@/lib/types';
 import { getWeatherForecast } from '@/lib/weather';
 import DayWeather from '@/components/DayWeather';
+
+interface MeteoLocation {
+  id: string;
+  destination_name: string;
+  latitude: number;
+  longitude: number;
+}
+
+interface SearchResult {
+  name: string;
+  lat: number;
+  lon: number;
+}
 
 export default function MeteoPage() {
   const { id: tripId } = useParams<{ id: string }>();
   const supabase = createClient();
 
   const [trip, setTrip] = useState<Trip | null>(null);
-  const [weather, setWeather] = useState<WeatherForecast[]>([]);
+  const [meteoLocations, setMeteoLocations] = useState<MeteoLocation[]>([]);
+  const [weatherData, setWeatherData] = useState<Map<string, WeatherForecast[]>>(new Map());
   const [loading, setLoading] = useState(true);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  // Load trip and meteo locations
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { data: tripData } = await supabase
         .from('trips')
         .select('*')
@@ -28,18 +51,32 @@ export default function MeteoPage() {
 
       setTrip(tripData ?? null);
 
-      // Fetch weather for the trip destination if coordinates are available
-      if (tripData?.lat && tripData?.lon) {
-        try {
-          const forecasts = await getWeatherForecast(
-            tripData.lat,
-            tripData.lon,
-            tripData.start_date,
-            tripData.end_date
-          );
-          setWeather(forecasts);
-        } catch (error) {
-          console.error('Error fetching weather:', error);
+      if (user) {
+        const { data: locations } = await supabase
+          .from('trip_meteo_locations')
+          .select('*')
+          .eq('trip_id', tripId)
+          .order('created_at', { ascending: true });
+
+        if (locations) {
+          setMeteoLocations(locations);
+          
+          // Fetch weather for each location
+          const weatherMap = new Map<string, WeatherForecast[]>();
+          for (const loc of locations) {
+            try {
+              const forecasts = await getWeatherForecast(
+                loc.latitude,
+                loc.longitude,
+                tripData?.start_date || new Date().toISOString().split('T')[0],
+                tripData?.end_date || new Date().toISOString().split('T')[0]
+              );
+              weatherMap.set(loc.id, forecasts);
+            } catch (error) {
+              console.error(`Error fetching weather for ${loc.destination_name}:`, error);
+            }
+          }
+          setWeatherData(weatherMap);
         }
       }
 
@@ -48,6 +85,99 @@ export default function MeteoPage() {
 
     load();
   }, [tripId]);
+
+  // Search destinations using Nominatim
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    
+    if (query.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearching(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=8`
+      );
+      const results: any[] = await response.json();
+      
+      const formatted: SearchResult[] = results
+        .slice(0, 8)
+        .map((r) => ({
+          name: r.display_name,
+          lat: parseFloat(r.lat),
+          lon: parseFloat(r.lon),
+        }));
+      
+      setSearchResults(formatted);
+      setShowDropdown(true);
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+    }
+    setSearching(false);
+  };
+
+  // Add meteo location
+  const addMeteoLocation = async (result: SearchResult) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+      const { data } = await supabase
+        .from('trip_meteo_locations')
+        .insert({
+          trip_id: tripId,
+          user_id: user.id,
+          destination_name: result.name,
+          latitude: result.lat,
+          longitude: result.lon,
+        })
+        .select()
+        .maybeSingle();
+
+      if (data) {
+        setMeteoLocations([...meteoLocations, data]);
+        
+        // Fetch weather for this location
+        try {
+          const forecasts = await getWeatherForecast(
+            data.latitude,
+            data.longitude,
+            trip?.start_date || new Date().toISOString().split('T')[0],
+            trip?.end_date || new Date().toISOString().split('T')[0]
+          );
+          setWeatherData(new Map(weatherData).set(data.id, forecasts));
+        } catch (error) {
+          console.error('Error fetching weather:', error);
+        }
+      }
+
+      setSearchQuery('');
+      setSearchResults([]);
+      setShowDropdown(false);
+    } catch (error) {
+      console.error('Error adding location:', error);
+    }
+  };
+
+  // Remove meteo location
+  const removeMeteoLocation = async (locationId: string) => {
+    try {
+      await supabase
+        .from('trip_meteo_locations')
+        .delete()
+        .eq('id', locationId);
+
+      setMeteoLocations(meteoLocations.filter((l) => l.id !== locationId));
+      const newWeatherData = new Map(weatherData);
+      newWeatherData.delete(locationId);
+      setWeatherData(newWeatherData);
+    } catch (error) {
+      console.error('Error removing location:', error);
+    }
+  };
 
   if (loading) {
     return (
@@ -76,21 +206,87 @@ export default function MeteoPage() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-slate-900">Meteo</h1>
-          <p className="text-sm text-slate-500">{trip.destination}</p>
+          <p className="text-sm text-slate-500">Aggiungi le destinazioni per visualizzare il meteo</p>
         </div>
       </div>
 
-      {weather.length === 0 ? (
+      {/* Search bar */}
+      <div className="card p-4 sm:p-5 mb-6">
+        <div className="relative">
+          <div className="relative">
+            <Search size={18} className="absolute left-3 top-3 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cerca una destinazione..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all bg-white"
+            />
+          </div>
+
+          {/* Dropdown results */}
+          {showDropdown && searchResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-lg shadow-lg z-10">
+              {searchResults.map((result, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => addMeteoLocation(result)}
+                  className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-b-0 transition-colors text-sm"
+                >
+                  <p className="font-medium text-slate-900">{result.name.split(',')[0]}</p>
+                  <p className="text-xs text-slate-500">{result.name.split(',').slice(1).join(',')}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {searching && <p className="text-xs text-slate-400 mt-2">Cercando...</p>}
+        </div>
+      </div>
+
+      {/* Meteo locations */}
+      {meteoLocations.length === 0 ? (
         <div className="card p-10 text-center text-slate-500">
-          Meteo non disponibile per questa destinazione.
+          Nessuna destinazione aggiunta. Usa la ricerca per iniziare.
         </div>
       ) : (
-        <div className="space-y-4">
-          {weather.map((forecast) => (
-            <div key={forecast.date}>
-              <DayWeather forecast={forecast} />
-            </div>
-          ))}
+        <div className="space-y-8">
+          {meteoLocations.map((location) => {
+            const forecasts = weatherData.get(location.id) || [];
+            return (
+              <div key={location.id}>
+                {/* Location header with delete button */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-slate-900">
+                    {location.destination_name.split(',')[0]}
+                  </h2>
+                  <button
+                    onClick={() => removeMeteoLocation(location.id)}
+                    className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
+                    title="Rimuovi destinazione"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Weather cards for this location */}
+                {forecasts.length === 0 ? (
+                  <div className="card p-6 text-center text-slate-500">
+                    Meteo non disponibile
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {forecasts.map((forecast) => (
+                      <div key={forecast.date}>
+                        <DayWeather forecast={forecast} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

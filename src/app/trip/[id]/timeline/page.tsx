@@ -5,10 +5,8 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, CalendarDays } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { Trip, Flight, Accommodation, Restaurant, Transport, Place, WeatherForecast } from '@/lib/types';
+import { Trip, Flight, Accommodation, Restaurant, Transport, Place } from '@/lib/types';
 import { formatDateShort } from '@/lib/utils';
-import { getWeatherForecast } from '@/lib/weather';
-import DayWeather from '@/components/DayWeather';
 
 interface TimelineEvent {
   id: string;
@@ -46,7 +44,6 @@ export default function TimelinePage() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [transports, setTransports] = useState<Transport[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
-  const [weather, setWeather] = useState<Map<string, WeatherForecast>>(new Map());
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -73,26 +70,6 @@ export default function TimelinePage() {
     setRestaurants(re ?? []);
     setTransports(tr ?? []);
     setPlaces(pl ?? []);
-
-    // Fetch weather for the trip destination if coordinates are available
-    if (tripData?.lat && tripData?.lon) {
-      try {
-        const forecasts = await getWeatherForecast(
-          tripData.lat,
-          tripData.lon,
-          tripData.start_date,
-          tripData.end_date
-        );
-        const weatherMap = new Map<string, WeatherForecast>();
-        forecasts.forEach((forecast) => {
-          weatherMap.set(forecast.date, forecast);
-        });
-        setWeather(weatherMap);
-      } catch (error) {
-        console.error('Error fetching weather:', error);
-      }
-    }
-
     setLoading(false);
   };
 
@@ -198,27 +175,10 @@ export default function TimelinePage() {
 
     byDate.forEach((evs) => evs.sort((a, b) => a.sortKey.localeCompare(b.sortKey)));
 
-    // Generate all days from start_date to end_date, including those without events
-    const allDays: DayGroup[] = [];
-    if (trip) {
-      const start = new Date(trip.start_date);
-      const end = new Date(trip.end_date);
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split('T')[0];
-        allDays.push({
-          date: dateStr,
-          events: byDate.get(dateStr) ?? [],
-        });
-      }
-    } else {
-      // Fallback: only show days with events
-      return Array.from(byDate.entries())
-        .map(([date, evs]) => ({ date, events: evs }))
-        .sort((a, b) => a.date.localeCompare(b.date));
-    }
-
-    return allDays;
-  }, [flights, accommodations, transports, restaurants, places, trip]);
+    return Array.from(byDate.entries())
+      .map(([date, evs]) => ({ date, events: evs }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [flights, accommodations, transports, restaurants, places]);
 
   if (loading) {
     return (
@@ -257,61 +217,35 @@ export default function TimelinePage() {
         </div>
       ) : (
         <div className="space-y-5">
-          {dayGroups.map((group) => {
-            const dayWeather = weather.get(group.date);
-            const hasEvents = group.events.length > 0;
-            
-            return (
-              <section key={group.date} className="card p-4 sm:p-5">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <h2 className="text-sm font-bold text-slate-900">
-                    {formatDateShort(group.date)}
-                  </h2>
-                  {dayWeather && <DayWeather forecast={dayWeather} compact />}
-                </div>
+          {dayGroups.map((group) => (
+            <section key={group.date} className="card p-4 sm:p-5">
+              <h2 className="text-sm font-bold text-slate-900 mb-3">
+                {formatDateShort(group.date)}
+              </h2>
 
-                {hasEvents ? (
-                  <>
-                    <div className="space-y-3">
-                      {group.events.map((ev, index) => {
-                        const last = index === group.events.length - 1;
-                        return (
-                          <div key={ev.id} className="grid grid-cols-[64px_20px_1fr] gap-3 items-start">
-                            <div className="text-xs font-semibold text-slate-500 pt-0.5">{ev.timeLabel}</div>
+              <div className="space-y-3">
+                {group.events.map((ev, index) => {
+                  const last = index === group.events.length - 1;
+                  return (
+                    <div key={ev.id} className="grid grid-cols-[64px_20px_1fr] gap-3 items-start">
+                      <div className="text-xs font-semibold text-slate-500 pt-0.5">{ev.timeLabel}</div>
 
-                            <div className="relative flex justify-center">
-                              {!last && <span className="absolute top-2 bottom-[-18px] w-px bg-slate-200" />}
-                              <span className="relative z-10 mt-1 w-2.5 h-2.5 rounded-full bg-slate-400" />
-                            </div>
-
-                            <div className="min-w-0 pb-1">
-                              <p className="text-sm font-semibold text-slate-900 leading-snug">{ev.title}</p>
-                              {ev.subtitle && <p className="text-xs text-slate-600 mt-0.5 truncate">{ev.subtitle}</p>}
-                              {ev.meta && <p className="text-[11px] text-slate-400 mt-0.5 uppercase tracking-wide">{ev.meta}</p>}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Full weather card below events */}
-                    {dayWeather && (
-                      <div className="mt-4 pt-4 border-t border-slate-200">
-                        <DayWeather forecast={dayWeather} />
+                      <div className="relative flex justify-center">
+                        {!last && <span className="absolute top-2 bottom-[-18px] w-px bg-slate-200" />}
+                        <span className="relative z-10 mt-1 w-2.5 h-2.5 rounded-full bg-slate-400" />
                       </div>
-                    )}
-                  </>
-                ) : (
-                  // Day with no events: show full weather card only
-                  dayWeather && (
-                    <div className="mt-2">
-                      <DayWeather forecast={dayWeather} />
+
+                      <div className="min-w-0 pb-1">
+                        <p className="text-sm font-semibold text-slate-900 leading-snug">{ev.title}</p>
+                        {ev.subtitle && <p className="text-xs text-slate-600 mt-0.5 truncate">{ev.subtitle}</p>}
+                        {ev.meta && <p className="text-[11px] text-slate-400 mt-0.5 uppercase tracking-wide">{ev.meta}</p>}
+                      </div>
                     </div>
-                  )
-                )}
-              </section>
-            );
-          })}
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       )}
     </div>

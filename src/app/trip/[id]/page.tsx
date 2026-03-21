@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   ArrowLeft, Edit, Trash2, MapPin, Calendar, Clock,
-  Plane, Hotel, Utensils, Map, BookOpen, Receipt, Bus, Car, CalendarDays, Users, LocateFixed, EyeOff,
+  Plane, Hotel, Utensils, Map, BookOpen, Receipt, Bus, Car, CalendarDays, Users, LocateFixed, EyeOff, Cloud,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Trip, TripRole, ROLE_LABELS, ROLE_COLORS } from '@/lib/types';
@@ -22,6 +22,7 @@ const MODULES = [
   { key: 'live_locations',  href: 'live-location',   icon: LocateFixed,   title: 'Live location',     countKey: 'live_locations', color: 'bg-cyan-100',    iconColor: 'text-cyan-700' },
   { key: 'transport',       href: 'transport',       icon: Bus,           title: 'Trasporti',         countKey: 'transport',      color: 'bg-blue-100',    iconColor: 'text-blue-700' },
   { key: 'car_rentals',     href: 'car-rental',      icon: Car,           title: 'Auto noleggio',     countKey: 'car_rentals',    color: 'bg-rose-100',    iconColor: 'text-rose-700' },
+  { key: 'meteo',           href: 'meteo',           icon: Cloud,         title: 'Meteo',             countKey: null,             color: 'bg-cyan-100',    iconColor: 'text-cyan-600' },
 ] as const;
 
 interface Counts {

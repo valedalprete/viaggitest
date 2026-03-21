@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Plus, Bus, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Bus, Edit, Trash2, MoreVertical } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Transport } from '@/lib/types';
@@ -16,8 +16,31 @@ const TYPE_LABELS: Record<string, string> = {
   train: 'Treno', bus: 'Bus', ferry: 'Traghetto',
   metro: 'Metro', taxi: 'Taxi', uber: 'Uber', other: 'Altro',
 };
-const TYPE_ICONS: Record<string, string> = {
-  train: '🚂', bus: '🚌', ferry: '⛴️', metro: '🚇', taxi: '🚕', uber: '🚗', other: '🚌',
+
+function PublicTransportIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M297.5-422.5Q280-405 280-380t17.5 42.5Q315-320 340-320t42.5-17.5Q400-355 400-380t-17.5-42.5Q365-440 340-440t-42.5 17.5Zm532.5-93Q880-471 880-400v160q0 33-23.5 56.5T800-160l80 80H520l80-80q-33 0-56.5-23.5T520-240v-160q0-71 50-115.5T700-560q80 0 130 44.5ZM679-291q-9 9-9 21t9 21q9 9 21 9t21-9q9-9 9-21t-9-21q-9-9-21-9t-21 9Zm-91-149q-4 9-6 19t-2 21v40h240v-40q0-11-2-21t-6-19H588ZM480-880q172 0 246 37t74 123v96q-18-6-38-9.5t-42-5.5v-41H240v120h260q-16 17-27.5 37T453-480H240v120q0 33 23.5 56.5T320-280h120v80H320v40q0 17-11.5 28.5T280-120h-40q-17 0-28.5-11.5T200-160v-82q-18-20-29-44.5T160-340v-380q0-83 77-121.5T480-880Zm2 120h224-448 224Zm-224 0h448q-15-17-64.5-28.5T482-800q-107 0-156.5 12.5T258-760Zm195 280Z" />
+    </svg>
+  );
+}
+
+function TaxiCarIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M240-200v40q0 17-11.5 28.5T200-120h-40q-17 0-28.5-11.5T120-160v-320l84-240q6-18 21.5-29t34.5-11h100v-80h240v80h100q19 0 34.5 11t21.5 29l84 240v320q0 17-11.5 28.5T800-120h-40q-17 0-28.5-11.5T720-160v-40H240Zm-8-360h496l-42-120H274l-42 120Zm-32 80v200-200Zm100 160q25 0 42.5-17.5T360-380q0-25-17.5-42.5T300-440q-25 0-42.5 17.5T240-380q0 25 17.5 42.5T300-320Zm360 0q25 0 42.5-17.5T720-380q0-25-17.5-42.5T660-440q-25 0-42.5 17.5T600-380q0 25 17.5 42.5T660-320Zm-460 40h560v-200H200v200Z" />
+    </svg>
+  );
+}
+
+const TRANSPORT_ICON_KIND: Record<string, 'public' | 'car'> = {
+  train: 'public',
+  bus: 'public',
+  ferry: 'public',
+  metro: 'public',
+  taxi: 'car',
+  uber: 'car',
+  other: 'public',
 };
 
 const empty = (): Partial<Transport> => ({
@@ -34,6 +57,8 @@ export default function TransportPage() {
   const [editing, setEditing] = useState<Transport | null>(null);
   const [form, setForm] = useState<Partial<Transport>>(empty());
   const [saving, setSaving] = useState(false);
+  const [expandedTransportId, setExpandedTransportId] = useState<string | null>(null);
+  const [openTransportMenuId, setOpenTransportMenuId] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -103,32 +128,119 @@ export default function TransportPage() {
       ) : (
         <div className="space-y-3">
           {items.map(item => (
-            <div key={item.id} className="card p-5 flex gap-4 items-start">
-              <div className="text-2xl flex-shrink-0 mt-0.5">{TYPE_ICONS[item.type] ?? '🚌'}</div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="badge bg-blue-100 text-blue-700">{TYPE_LABELS[item.type]}</span>
-                  {item.operator && <span className="text-sm font-medium text-gray-800">{item.operator}</span>}
+            <div key={item.id} className="card">
+              {/* Preview row */}
+              <button
+                type="button"
+                onClick={() => {
+                  setExpandedTransportId(prev => prev === item.id ? null : item.id);
+                  setOpenTransportMenuId(null);
+                }}
+                className="w-full text-left p-3 flex items-center gap-3"
+              >
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 text-blue-700">
+                  {TRANSPORT_ICON_KIND[item.type] === 'car' ? (
+                    <TaxiCarIcon className="w-5 h-5" />
+                  ) : (
+                    <PublicTransportIcon className="w-5 h-5" />
+                  )}
                 </div>
-                {(item.from_location || item.to_location) && (
-                  <div className="mt-1 text-sm font-medium text-gray-700">
-                    {item.from_location} {item.from_location && item.to_location && '→'} {item.to_location}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-gray-900">{TYPE_LABELS[item.type]}</span>
+                    {item.date && <span className="text-xs text-gray-500">· {formatDate(item.date)}</span>}
                   </div>
-                )}
-                <div className="mt-0.5 text-xs text-gray-400 flex flex-wrap gap-3">
-                  {item.date && <span>{formatDate(item.date)}</span>}
-                  {item.departure_time && <span>Partenza: {item.departure_time}</span>}
-                  {item.arrival_time   && <span>Arrivo: {item.arrival_time}</span>}
-                  {item.price != null  && <span className="text-primary-600 font-medium">{formatCurrency(item.price)}</span>}
-                  {item.booking_ref    && <span>Ref: <span className="font-mono">{item.booking_ref}</span></span>}
+                  <p className="text-xs text-gray-600 mt-0.5 truncate">
+                    {(item.from_location || '—')} → {(item.to_location || '—')}
+                  </p>
                 </div>
-                {item.notes && <p className="mt-1 text-xs text-gray-400 italic">{item.notes}</p>}
-                <TicketAttachments module="transport" tripId={tripId} recordId={item.id} />
-              </div>
-              <div className="flex gap-1.5 flex-shrink-0">
-                <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-sand-200"><Edit size={14} /></button>
-                <button onClick={() => handleDelete(item)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={14} /></button>
-              </div>
+              </button>
+
+              {/* Expanded details */}
+              {expandedTransportId === item.id && (
+                <div className="px-3 pb-3 pt-1 border-t border-sand-200 space-y-3">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Partenza</p>
+                      <p className="text-gray-900 font-medium mt-0.5">{item.from_location || '—'}</p>
+                      {item.departure_time && <p className="text-xs text-gray-500">Ore {item.departure_time}</p>}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Arrivo</p>
+                      <p className="text-gray-900 font-medium mt-0.5">{item.to_location || '—'}</p>
+                      {item.arrival_time && <p className="text-xs text-gray-500">Ore {item.arrival_time}</p>}
+                    </div>
+                  </div>
+
+                  {item.operator && (
+                    <div className="text-sm">
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Operatore</p>
+                      <p className="text-gray-900">{item.operator}</p>
+                    </div>
+                  )}
+
+                  {item.price != null && (
+                    <div className="text-sm">
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Costo</p>
+                      <p className="text-primary-600 font-bold">{formatCurrency(item.price)}</p>
+                    </div>
+                  )}
+
+                  {item.booking_ref && (
+                    <div className="text-sm">
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Codice prenotazione</p>
+                      <p className="font-mono text-gray-900">{item.booking_ref}</p>
+                    </div>
+                  )}
+
+                  {item.notes && (
+                    <div className="text-sm">
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Note</p>
+                      <p className="text-gray-600 text-xs italic">{item.notes}</p>
+                    </div>
+                  )}
+
+                  <TicketAttachments module="transport" tripId={tripId} recordId={item.id} />
+
+                  <div className="flex gap-2 pt-2 border-t border-sand-100">
+                    <div className="relative ml-auto">
+                      <button
+                        type="button"
+                        onClick={() => setOpenTransportMenuId(prev => prev === item.id ? null : item.id)}
+                        className="p-1 text-slate-500 hover:text-slate-700 transition-colors"
+                        aria-label="Azioni trasporto"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
+
+                      {openTransportMenuId === item.id && (
+                        <div className="absolute right-0 top-8 z-20 w-32 rounded-xl border border-slate-200 bg-white shadow-elevated p-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenTransportMenuId(null);
+                              openEdit(item);
+                            }}
+                            className="w-full text-left px-2.5 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100 flex items-center gap-2"
+                          >
+                            <Edit size={13} /> Modifica
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenTransportMenuId(null);
+                              handleDelete(item);
+                            }}
+                            className="w-full text-left px-2.5 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                          >
+                            <Trash2 size={13} /> Elimina
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

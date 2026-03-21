@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Plane } from 'lucide-react';
+import { Plus, Plane, Archive } from 'lucide-react';
 import { Rubik } from 'next/font/google';
 import { createClient } from '@/lib/supabase/client';
 import { Trip, TripRole } from '@/lib/types';
@@ -22,6 +22,7 @@ interface TripWithRole extends Trip {
 export default function DashboardPage() {
   const [trips, setTrips] = useState<TripWithRole[]>([]);
   const [hiddenTrips, setHiddenTrips] = useState<TripWithRole[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const hideTripFromDashboard = async (tripId: string) => {
@@ -184,8 +185,16 @@ export default function DashboardPage() {
 
       {/* Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-12">
-        {/* Mobile CTA */}
-        <div className="flex sm:hidden justify-end mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => setShowArchived(prev => !prev)}
+            className="inline-flex items-center gap-1.5 text-slate-700 hover:text-slate-900 font-semibold text-sm"
+          >
+            <Archive size={16} /> Archiviati
+            {hiddenTrips.length > 0 && (
+              <span className="text-xs bg-slate-100 text-slate-700 rounded-full px-2 py-0.5">{hiddenTrips.length}</span>
+            )}
+          </button>
           <Link href="/trip/new" className="inline-flex items-center gap-1.5 text-primary-700 hover:text-primary-800 font-semibold text-sm">
             <Plus size={16} /> Nuovo viaggio
           </Link>
@@ -231,19 +240,23 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {hiddenTrips.length > 0 && (
-              <div className="mt-10 rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-sm p-4 sm:p-5">
+            {showArchived && (
+              <div className="mt-6 rounded-2xl border border-slate-200/80 bg-white/70 backdrop-blur-sm p-4 sm:p-5">
                 <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-4">Archiviati</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {hiddenTrips.map(trip => (
-                    <TripCard
-                      key={trip.id}
-                      trip={trip}
-                      myRole={trip.myRole}
-                      onRestoreToDashboard={() => restoreTripToDashboard(trip.id)}
-                    />
-                  ))}
-                </div>
+                {hiddenTrips.length === 0 ? (
+                  <p className="text-sm text-gray-500">Nessun viaggio archiviato.</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {hiddenTrips.map(trip => (
+                      <TripCard
+                        key={trip.id}
+                        trip={trip}
+                        myRole={trip.myRole}
+                        onRestoreToDashboard={() => restoreTripToDashboard(trip.id)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>

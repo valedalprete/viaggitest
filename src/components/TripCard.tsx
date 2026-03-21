@@ -1,6 +1,9 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MapPin, Calendar, Clock, Users, EyeOff, Eye } from 'lucide-react';
+import { MapPin, Calendar, Clock, Users, EyeOff, Eye, MoreHorizontal } from 'lucide-react';
 import { Trip, TripRole } from '@/lib/types';
 import { formatDateRange, getCountdownText, getTripStatus, getTripDuration } from '@/lib/utils';
 
@@ -26,6 +29,7 @@ function getCoverGradient(id: string) {
 }
 
 export default function TripCard({ trip, myRole, onHideFromDashboard, onRestoreToDashboard }: TripCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const status = getTripStatus(trip.start_date, trip.end_date);
   const countdown = getCountdownText(trip.start_date, trip.end_date);
   const duration = getTripDuration(trip.start_date, trip.end_date);
@@ -66,7 +70,54 @@ export default function TripCard({ trip, myRole, onHideFromDashboard, onRestoreT
           </div>
           {/* Destination */}
           <div className="absolute bottom-4 left-4 right-4">
-            <h3 className="text-white font-extrabold text-lg leading-tight drop-shadow">{trip.name}</h3>
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-white font-extrabold text-lg leading-tight drop-shadow flex-1">{trip.name}</h3>
+              {(onHideFromDashboard || onRestoreToDashboard) && (
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setMenuOpen(prev => !prev);
+                    }}
+                    className="p-1 rounded-md bg-black/30 text-white hover:bg-black/45"
+                    aria-label="Azioni viaggio"
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
+                  {menuOpen && (
+                    <div className="absolute right-0 mt-1 w-40 rounded-lg bg-white shadow-elevated border border-slate-200 p-1 z-20">
+                      {onHideFromDashboard && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setMenuOpen(false);
+                            onHideFromDashboard();
+                          }}
+                          className="w-full text-left px-2.5 py-2 rounded-md text-sm text-slate-700 hover:bg-slate-100 inline-flex items-center gap-2"
+                        >
+                          <EyeOff size={13} /> Nascondi
+                        </button>
+                      )}
+                      {onRestoreToDashboard && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setMenuOpen(false);
+                            onRestoreToDashboard();
+                          }}
+                          className="w-full text-left px-2.5 py-2 rounded-md text-sm text-primary-700 hover:bg-primary-50 inline-flex items-center gap-2"
+                        >
+                          <Eye size={13} /> Ripristina
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-1 mt-1">
               <MapPin size={12} className="text-white/80" />
               <span className="text-white/90 text-sm font-medium">{trip.destination}</span>
@@ -94,34 +145,6 @@ export default function TripCard({ trip, myRole, onHideFromDashboard, onRestoreT
             </div>
           )}
 
-          {(onHideFromDashboard || onRestoreToDashboard) && (
-            <div className="mt-3 pt-3 border-t border-sand-200">
-              {onHideFromDashboard && (
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onHideFromDashboard();
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
-                >
-                  <EyeOff size={12} /> Nascondi dalla dashboard
-                </button>
-              )}
-              {onRestoreToDashboard && (
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onRestoreToDashboard();
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:text-primary-800"
-                >
-                  <Eye size={12} /> Mostra di nuovo
-                </button>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </Link>

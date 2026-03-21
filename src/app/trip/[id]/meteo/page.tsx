@@ -62,22 +62,24 @@ export default function MeteoPage() {
         if (locations) {
           setMeteoLocations(locations);
           
-          // Fetch weather for each location
-          const weatherMap = new Map<string, WeatherForecast[]>();
-          for (const loc of locations) {
-            try {
-              const forecasts = await getWeatherForecast(
-                loc.latitude,
-                loc.longitude,
-                tripData?.start_date || new Date().toISOString().split('T')[0],
-                tripData?.end_date || new Date().toISOString().split('T')[0]
-              );
-              weatherMap.set(loc.id, forecasts);
-            } catch (error) {
-              console.error(`Error fetching weather for ${loc.destination_name}:`, error);
+          // Fetch weather for each location only if trip dates are available
+          if (tripData?.start_date && tripData?.end_date) {
+            const weatherMap = new Map<string, WeatherForecast[]>();
+            for (const loc of locations) {
+              try {
+                const forecasts = await getWeatherForecast(
+                  loc.latitude,
+                  loc.longitude,
+                  tripData.start_date,
+                  tripData.end_date
+                );
+                weatherMap.set(loc.id, forecasts);
+              } catch (error) {
+                console.error(`Error fetching weather for ${loc.destination_name}:`, error);
+              }
             }
+            setWeatherData(weatherMap);
           }
-          setWeatherData(weatherMap);
         }
       }
 
@@ -125,6 +127,13 @@ export default function MeteoPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Ensure we have valid dates before proceeding
+    if (!trip || !trip.start_date || !trip.end_date) {
+      console.error('Trip data missing:', trip);
+      alert('Errore: dati del viaggio non disponibili');
+      return;
+    }
+
     setAddingLocation(result.name);
 
     try {
@@ -145,8 +154,9 @@ export default function MeteoPage() {
         
         // Fetch weather for this location
         try {
-          const startDate = trip?.start_date || new Date().toISOString().split('T')[0];
-          const endDate = trip?.end_date || new Date().toISOString().split('T')[0];
+          // Use trip dates directly (already validated above)
+          const startDate = trip.start_date;
+          const endDate = trip.end_date;
           
           console.log('Fetching weather for:', {
             name: result.name,

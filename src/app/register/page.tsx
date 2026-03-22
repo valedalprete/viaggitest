@@ -21,6 +21,21 @@ function RegisterForm() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  const mapAuthErrorMessage = (rawMessage: string) => {
+    const msg = rawMessage.toLowerCase();
+
+    if (
+      msg.includes('over_email_send_rate_limit') ||
+      msg.includes('email rate limit exceeded') ||
+      msg.includes('for security purposes') ||
+      msg.includes('too many requests')
+    ) {
+      return 'Limite email temporaneamente raggiunto: sono state inviate troppe email di conferma in poco tempo. Riprova tra qualche minuto (in alcuni casi fino a 1 ora).';
+    }
+
+    return rawMessage;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -48,7 +63,7 @@ function RegisterForm() {
     });
 
     if (error) {
-      setError(error.message);
+      setError(mapAuthErrorMessage(error.message));
       setLoading(false);
     } else {
       setSuccess(true);

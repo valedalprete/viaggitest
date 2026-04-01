@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   ArrowLeft, Edit, Trash2, MapPin, Calendar, Clock,
-  Plane, Hotel, Utensils, Map, BookOpen, Receipt, Bus, Car, CalendarDays, Users, Images,
+  Plane, Hotel, Utensils, Map, BookOpen, Receipt, Bus, Car, CalendarDays, Users, Images, LocateFixed, EyeOff, Cloud,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Trip, TripRole, ROLE_LABELS, ROLE_COLORS } from '@/lib/types';
@@ -20,8 +20,10 @@ const MODULES = [
   { key: 'recommendations', href: 'recommendations', icon: Map,           title: 'Luoghi',            description: 'Da vedere e suggeriti',     color: 'bg-emerald-100', iconColor: 'text-emerald-700' },
   { key: 'expenses',        href: 'expenses',        icon: Receipt,       title: 'Spese',             description: 'Gestione spese e rimborsi', color: 'bg-green-100',   iconColor: 'text-green-700' },
   { key: 'itinerary',       href: 'itinerary',       icon: BookOpen,      title: 'Diario',            description: 'Giornale di viaggio',       color: 'bg-amber-100',   iconColor: 'text-amber-700' },
+  { key: 'live_locations',  href: 'live-location',   icon: LocateFixed,   title: 'Live location',     description: 'Condivisione posizione live', color: 'bg-cyan-100',    iconColor: 'text-cyan-700' },
   { key: 'transport',       href: 'transport',       icon: Bus,           title: 'Trasporti',         description: 'Treni, bus e traghetti',    color: 'bg-blue-100',    iconColor: 'text-blue-700' },
   { key: 'car_rentals',     href: 'car-rental',      icon: Car,           title: 'Auto a noleggio',   description: 'Noleggio veicoli',          color: 'bg-rose-100',    iconColor: 'text-rose-700' },
+  { key: 'meteo',           href: 'meteo',           icon: Cloud,         title: 'Meteo',             description: 'Previsioni e andamento',     color: 'bg-cyan-100',    iconColor: 'text-cyan-600' },
   { key: 'photos',          href: 'photos',          icon: Images,        title: 'Foto',              description: 'Galleria condivisa',         color: 'bg-fuchsia-100', iconColor: 'text-fuchsia-700' },
 ] as const;
 
@@ -32,6 +34,7 @@ interface Counts {
   recommendations: number;
   expenses: number;
   itinerary: number;
+  live_locations: number;
   transport: number;
   car_rentals: number;
   photos: number;
@@ -45,6 +48,7 @@ export default function TripHubPage() {
   const [myRole, setMyRole] = useState<TripRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [hiding, setHiding] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -57,11 +61,12 @@ export default function TripHubPage() {
       supabase.from('places').select('id', { count: 'exact', head: true }).eq('trip_id', id),
       supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('trip_id', id),
       supabase.from('diary_entries').select('id', { count: 'exact', head: true }).eq('trip_id', id),
+      supabase.from('trip_live_locations').select('id', { count: 'exact', head: true }).eq('trip_id', id).eq('sharing_enabled', true).gt('expires_at', new Date().toISOString()),
       supabase.from('transports').select('id', { count: 'exact', head: true }).eq('trip_id', id),
       supabase.from('car_rentals').select('id', { count: 'exact', head: true }).eq('trip_id', id),
       supabase.from('trip_photos').select('id', { count: 'exact', head: true }).eq('trip_id', id),
       supabase.auth.getUser(),
-    ]).then(async ([tripRes, fl, ac, re, pl, ex, di, tr, cr, ph, userRes]) => {
+    ]).then(async ([tripRes, fl, ac, re, pl, ex, di, li, tr, cr, ph, userRes]) => {
       setTrip(tripRes.data);
       setCounts({
         flights:        fl.count ?? 0,
@@ -70,6 +75,7 @@ export default function TripHubPage() {
         recommendations: pl.count ?? 0,
         expenses:       ex.count ?? 0,
         itinerary:      di.count ?? 0,
+        live_locations: li.count ?? 0,
         transport:      tr.count ?? 0,
         car_rentals:    cr.count ?? 0,
         photos:         ph.count ?? 0,
@@ -93,6 +99,25 @@ export default function TripHubPage() {
     if (!confirm('Eliminare questo viaggio? Tutti i dati verranno persi.')) return;
     setDeleting(true);
     await createClient().from('trips').delete().eq('id', id);
+    router.push('/dashboard');
+  };
+
+  const handleHideFromDashboard = async () => {
+    if (!myRole || myRole === 'owner') return;
+    if (!confirm('Nascondere questo viaggio dalla tua Dashboard? Potrai sempre riaprire il link diretto dal proprietario.')) return;
+
+    const supabase = createClient();
+    setHiding(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setHiding(false);
+      return;
+    }
+
+    await supabase
+      .from('hidden_trips')
+      .upsert({ user_id: user.id, trip_id: id }, { onConflict: 'user_id,trip_id' });
+
     router.push('/dashboard');
   };
 
@@ -158,6 +183,17 @@ export default function TripHubPage() {
                   className="p-2 rounded-xl bg-white/20 hover:bg-red-500/60 backdrop-blur-sm text-white transition-colors"
                 >
                   <Trash2 size={15} />
+                </button>
+              )}
+              {myRole && myRole !== 'owner' && (
+                <button
+                  onClick={handleHideFromDashboard}
+                  disabled={hiding}
+                  className="p-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white transition-colors"
+                  title="Nascondi dalla Dashboard"
+                  aria-label="Nascondi dalla Dashboard"
+                >
+                  <EyeOff size={15} />
                 </button>
               )}
             </div>

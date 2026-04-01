@@ -346,3 +346,14 @@ export interface WeatherForecast {
   iconName: string; // Lucide icon name
   hint: string; // Context-aware message
 }
+
+export interface TripPhoto {
+  id: string;
+  trip_id: string;
+  uploaded_by: string;
+  storage_path: string;
+  file_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  created_at: string;
+}

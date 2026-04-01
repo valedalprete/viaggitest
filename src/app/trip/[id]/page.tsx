@@ -1,4 +1,4 @@
-'use client';
+
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -6,23 +6,23 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   ArrowLeft, Edit, Trash2, MapPin, Calendar, Clock,
-  Plane, Hotel, Utensils, Map, BookOpen, Receipt, Bus, Car, CalendarDays, Users, LocateFixed, EyeOff, Cloud,
+  Plane, Hotel, Utensils, Map, BookOpen, Receipt, Bus, Car, CalendarDays, Users, Images,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Trip, TripRole, ROLE_LABELS, ROLE_COLORS } from '@/lib/types';
 import { formatDateRange, getCountdownText, getTripDuration, getTripStatus } from '@/lib/utils';
+import ModuleCard from '@/components/ModuleCard';
 
 const MODULES = [
-  { key: 'flights',         href: 'flights',         icon: Plane,         title: 'Voli',              countKey: 'flights',        color: 'bg-sky-100',     iconColor: 'text-sky-700' },
-  { key: 'accommodation',   href: 'accommodation',   icon: Hotel,         title: 'Alloggio',          countKey: 'accommodation',  color: 'bg-violet-100',  iconColor: 'text-violet-700' },
-  { key: 'restaurants',     href: 'restaurants',     icon: Utensils,      title: 'Ristoranti',        countKey: 'restaurants',    color: 'bg-orange-100',  iconColor: 'text-orange-700' },
-  { key: 'recommendations', href: 'recommendations', icon: Map,           title: 'Luoghi',            countKey: 'recommendations', color: 'bg-emerald-100', iconColor: 'text-emerald-700' },
-  { key: 'expenses',        href: 'expenses',        icon: Receipt,       title: 'Spese',             countKey: 'expenses',       color: 'bg-green-100',   iconColor: 'text-green-700' },
-  { key: 'itinerary',       href: 'itinerary',       icon: BookOpen,      title: 'Diario',            countKey: 'itinerary',      color: 'bg-amber-100',   iconColor: 'text-amber-700' },
-  { key: 'live_locations',  href: 'live-location',   icon: LocateFixed,   title: 'Live location',     countKey: 'live_locations', color: 'bg-cyan-100',    iconColor: 'text-cyan-700' },
-  { key: 'transport',       href: 'transport',       icon: Bus,           title: 'Trasporti',         countKey: 'transport',      color: 'bg-blue-100',    iconColor: 'text-blue-700' },
-  { key: 'car_rentals',     href: 'car-rental',      icon: Car,           title: 'Auto noleggio',     countKey: 'car_rentals',    color: 'bg-rose-100',    iconColor: 'text-rose-700' },
-  { key: 'meteo',           href: 'meteo',           icon: Cloud,         title: 'Meteo',             countKey: null,             color: 'bg-cyan-100',    iconColor: 'text-cyan-600' },
+  { key: 'flights',         href: 'flights',         icon: Plane,         title: 'Voli',             description: 'Voli andata e ritorno',     color: 'bg-sky-100',     iconColor: 'text-sky-700' },
+  { key: 'accommodation',   href: 'accommodation',   icon: Hotel,         title: 'Alloggio',          description: 'Hotel, Airbnb e altro',     color: 'bg-violet-100',  iconColor: 'text-violet-700' },
+  { key: 'restaurants',     href: 'restaurants',     icon: Utensils,      title: 'Ristoranti',        description: 'Prenotati e preferiti',     color: 'bg-orange-100',  iconColor: 'text-orange-700' },
+  { key: 'recommendations', href: 'recommendations', icon: Map,           title: 'Luoghi',            description: 'Da vedere e suggeriti',     color: 'bg-emerald-100', iconColor: 'text-emerald-700' },
+  { key: 'expenses',        href: 'expenses',        icon: Receipt,       title: 'Spese',             description: 'Gestione spese e rimborsi', color: 'bg-green-100',   iconColor: 'text-green-700' },
+  { key: 'itinerary',       href: 'itinerary',       icon: BookOpen,      title: 'Diario',            description: 'Giornale di viaggio',       color: 'bg-amber-100',   iconColor: 'text-amber-700' },
+  { key: 'transport',       href: 'transport',       icon: Bus,           title: 'Trasporti',         description: 'Treni, bus e traghetti',    color: 'bg-blue-100',    iconColor: 'text-blue-700' },
+  { key: 'car_rentals',     href: 'car-rental',      icon: Car,           title: 'Auto a noleggio',   description: 'Noleggio veicoli',          color: 'bg-rose-100',    iconColor: 'text-rose-700' },
+  { key: 'photos',          href: 'photos',          icon: Images,        title: 'Foto',              description: 'Galleria condivisa',         color: 'bg-fuchsia-100', iconColor: 'text-fuchsia-700' },
 ] as const;
 
 interface Counts {
@@ -32,9 +32,9 @@ interface Counts {
   recommendations: number;
   expenses: number;
   itinerary: number;
-  live_locations: number;
   transport: number;
   car_rentals: number;
+  photos: number;
 }
 
 export default function TripHubPage() {
@@ -45,7 +45,6 @@ export default function TripHubPage() {
   const [myRole, setMyRole] = useState<TripRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
-  const [hiding, setHiding] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -58,11 +57,11 @@ export default function TripHubPage() {
       supabase.from('places').select('id', { count: 'exact', head: true }).eq('trip_id', id),
       supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('trip_id', id),
       supabase.from('diary_entries').select('id', { count: 'exact', head: true }).eq('trip_id', id),
-      supabase.from('trip_live_locations').select('id', { count: 'exact', head: true }).eq('trip_id', id).eq('sharing_enabled', true).gt('expires_at', new Date().toISOString()),
       supabase.from('transports').select('id', { count: 'exact', head: true }).eq('trip_id', id),
       supabase.from('car_rentals').select('id', { count: 'exact', head: true }).eq('trip_id', id),
+      supabase.from('trip_photos').select('id', { count: 'exact', head: true }).eq('trip_id', id),
       supabase.auth.getUser(),
-    ]).then(async ([tripRes, fl, ac, re, pl, ex, di, li, tr, cr, userRes]) => {
+    ]).then(async ([tripRes, fl, ac, re, pl, ex, di, tr, cr, ph, userRes]) => {
       setTrip(tripRes.data);
       setCounts({
         flights:        fl.count ?? 0,
@@ -71,11 +70,10 @@ export default function TripHubPage() {
         recommendations: pl.count ?? 0,
         expenses:       ex.count ?? 0,
         itinerary:      di.count ?? 0,
-        live_locations: li.count ?? 0,
         transport:      tr.count ?? 0,
         car_rentals:    cr.count ?? 0,
+        photos:         ph.count ?? 0,
       });
-      // Fetch my role
       const userId = userRes.data.user?.id;
       if (userId) {
         const { data: memberRow } = await supabase
@@ -98,28 +96,12 @@ export default function TripHubPage() {
     router.push('/dashboard');
   };
 
-  const handleHideFromDashboard = async () => {
-    if (!myRole || myRole === 'owner') return;
-    if (!confirm('Nascondere questo viaggio dalla tua Dashboard? Potrai sempre riaprire il link diretto dal proprietario.')) return;
-    const supabase = createClient();
-    setHiding(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setHiding(false);
-      return;
-    }
-    await supabase
-      .from('hidden_trips')
-      .upsert({ user_id: user.id, trip_id: id }, { onConflict: 'user_id,trip_id' });
-    router.push('/dashboard');
-  };
-
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-10">
         <div className="card h-56 animate-pulse bg-sand-200 mb-6" />
         <div className="grid grid-cols-2 gap-4">
-          {[...Array(8)].map((_, i) => <div key={i} className="card h-24 animate-pulse bg-sand-200" />)}
+          {[...Array(10)].map((_, i) => <div key={i} className="card h-24 animate-pulse bg-sand-200" />)}
         </div>
       </div>
     );
@@ -133,7 +115,6 @@ export default function TripHubPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
-      {/* Back */}
       <Link
         href="/dashboard"
         aria-label="Torna alla dashboard"
@@ -143,7 +124,6 @@ export default function TripHubPage() {
         <ArrowLeft size={18} strokeWidth={2.3} />
       </Link>
 
-      {/* Hero Card */}
       <div className="card overflow-hidden mb-6">
         <div className="relative h-52">
           {trip.cover_image ? (
@@ -180,22 +160,10 @@ export default function TripHubPage() {
                   <Trash2 size={15} />
                 </button>
               )}
-              {myRole && myRole !== 'owner' && (
-                <button
-                  onClick={handleHideFromDashboard}
-                  disabled={hiding}
-                  className="p-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white transition-colors"
-                  title="Nascondi dalla Dashboard"
-                  aria-label="Nascondi dalla Dashboard"
-                >
-                  <EyeOff size={15} />
-                </button>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Trip info bar */}
         <div className="px-5 py-4 flex flex-wrap gap-4 text-sm text-gray-600 border-b border-sand-200">
           <div className="flex items-center gap-1.5">
             <Calendar size={14} className="text-gray-400" />
@@ -223,35 +191,34 @@ export default function TripHubPage() {
         )}
       </div>
 
-      {/* Modules Grid */}
       <h2 className="text-lg font-extrabold text-gray-800 mb-3">Sezioni del viaggio</h2>
 
-      {/* Timeline — thin full-width rectangle */}
-      <Link href={`/trip/${id}/timeline`}>
-        <div className="mb-3 rounded-lg border border-primary-200 bg-primary-50 px-4 py-3 flex items-center justify-between hover:bg-primary-100 transition-colors">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <CalendarDays size={17} className="text-primary-700 flex-shrink-0" />
-            <span className="font-semibold text-primary-900 text-sm">Timeline</span>
-          </div>
-        </div>
-      </Link>
+      <div className="mb-3">
+        <ModuleCard
+          href={`/trip/${id}/timeline`}
+          icon={CalendarDays}
+          title="Timeline"
+          description="Tutti gli eventi del viaggio in ordine cronologico"
+          color="bg-primary-100"
+          iconColor="text-primary-700"
+        />
+      </div>
 
-      {/* Module squares grid — 3 per row */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {MODULES.map(mod => {
-          const count = 'countKey' in mod ? (counts?.[mod.countKey as keyof Counts] ?? 0) : 0;
+          const count = counts?.[mod.key as keyof Counts] ?? 0;
           return (
-            <Link key={mod.key} href={`/trip/${id}/${mod.href}`}>
-              <div className={`${mod.color} rounded-lg p-2.5 aspect-square flex flex-col items-center justify-center cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group`}>
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform`}>
-                  <mod.icon size={19} className={mod.iconColor} />
-                </div>
-                <h3 className="font-bold text-gray-900 text-[11px] sm:text-xs text-center leading-tight">{mod.title}</h3>
-                {count > 0 && (
-                  <span className="text-[10px] text-gray-600 mt-1 font-semibold">{count}</span>
-                )}
-              </div>
-            </Link>
+            <ModuleCard
+              key={mod.key}
+              href={`/trip/${id}/${mod.href}`}
+              icon={mod.icon}
+              title={mod.title}
+              description={mod.description}
+              count={count}
+              countLabel={count === 1 ? 'elemento' : 'elementi'}
+              color={mod.color}
+              iconColor={mod.iconColor}
+            />
           );
         })}
       </div>

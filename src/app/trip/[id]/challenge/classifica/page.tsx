@@ -8,7 +8,13 @@ import { createClient } from '@/lib/supabase/client';
 import EmptyState from '@/components/EmptyState';
 import Modal from '@/components/Modal';
 
-const AVATAR_OPTIONS = Array.from({ length: 24 }, (_, index) => `persona-${index + 1}`);
+const AVATAR_OPTIONS = [
+  'alice', 'emma', 'sofia', 'luna', 'olivia', 'giulia', 'sara', 'mia',
+  'emma-2', 'aria', 'noa', 'aurora', 'violet', 'isabella', 'chiara', 'valentina',
+  'martina', 'gaia', 'alice-2', 'elena', 'camilla', 'flora', 'anna', 'nicole',
+  'beatrice', 'sofia-2', 'luna-2', 'emma-3', 'maria', 'roberta', 'alessia', 'greta',
+  'iris', 'maya', 'sabrina', 'daria'
+];
 
 const getDiceBearUrl = (seed: string) => {
   const encoded = encodeURIComponent(seed);
@@ -254,21 +260,20 @@ export default function ChallengeLeaderboardPage() {
             </div>
 
             <div className="form-group">
-              <label className="label">Scegli stile avatar</label>
-              <div className="grid grid-cols-3 gap-2">
+              <label className="label">Scegli avatar</label>
+              <div className="grid grid-cols-4 gap-2">
                 {AVATAR_OPTIONS.map((style) => (
                   <button
                     key={style}
                     type="button"
                     onClick={() => setSelectedAvatarStyle(style)}
-                    className={`p-3 rounded-lg transition-all flex flex-col items-center gap-1 ${
+                    className={`p-2 rounded-xl transition-all flex items-center justify-center aspect-square ${
                       selectedAvatarStyle === style
                         ? 'bg-blue-100 ring-2 ring-blue-500'
                         : 'bg-sand-100 hover:bg-sand-200'
                     }`}
                   >
-                    <img src={getDiceBearUrl(style)} alt={style} className="w-8 h-8 rounded-full" />
-                    <span className="text-xs font-medium text-gray-700 capitalize">{style}</span>
+                    <img src={getDiceBearUrl(style)} alt={style} className="w-12 h-12 rounded-full" />
                   </button>
                 ))}
               </div>

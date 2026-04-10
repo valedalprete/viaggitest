@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Edit, ListChecks, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Edit, ListChecks, Plus, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Modal from '@/components/Modal';
 import EmptyState from '@/components/EmptyState';
@@ -37,6 +37,7 @@ export default function ChallengeTasksPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncingKey, setSyncingKey] = useState<string | null>(null);
+  const [expandedChallengeId, setExpandedChallengeId] = useState<string | null>(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Challenge | null>(null);
@@ -112,7 +113,7 @@ export default function ChallengeTasksPage() {
   };
 
   const deleteChallenge = async (challenge: Challenge) => {
-    if (!confirm(`Eliminare la sfida "${challenge.title}"?`)) return;
+    if (!confirm(`Eliminare definitivamente la sfida "${challenge.title}"?`)) return;
     await supabase.from('trip_challenges').delete().eq('id', challenge.id);
     await load();
   };
@@ -165,7 +166,6 @@ export default function ChallengeTasksPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Sfide</h1>
-            <p className="text-sm text-gray-500">Crea sfide e indica chi le ha completate.</p>
           </div>
         </div>
         <button onClick={openAdd} className="btn-primary"><Plus size={15} /> Aggiungi</button>
@@ -186,66 +186,74 @@ export default function ChallengeTasksPage() {
         <div className="space-y-3">
           {challenges.map(challenge => {
             const completedBy = participants.filter(p => completionSet.has(`${challenge.id}:${p.id}`));
+            const isExpanded = expandedChallengeId === challenge.id;
 
             return (
               <div key={challenge.id} className="card p-4">
-                <div className="flex items-start gap-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedChallengeId(prev => prev === challenge.id ? null : challenge.id)}
+                  className="w-full flex items-center gap-3 text-left"
+                >
                   <div className="min-w-0 flex-1">
                     <h2 className="text-sm font-bold text-gray-900">{challenge.title}</h2>
                     <p className="text-xs text-gray-500 mt-0.5">{challenge.points} {challenge.points === 1 ? 'punto' : 'punti'}</p>
                   </div>
+                  <ChevronDown size={16} className={`text-slate-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                </button>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => openEdit(challenge)}
-                      className="p-2 rounded-lg text-slate-600 hover:bg-slate-100"
-                      title="Modifica sfida"
-                      aria-label="Modifica sfida"
-                    >
-                      <Edit size={14} />
-                    </button>
-                    <button
-                      onClick={() => deleteChallenge(challenge)}
-                      className="p-2 rounded-lg text-red-600 hover:bg-red-50"
-                      title="Elimina sfida"
-                      aria-label="Elimina sfida"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
+                {isExpanded && (
+                  <div className="mt-3 pt-3 border-t border-sand-200">
+                    {participants.length === 0 ? (
+                      <p className="text-xs text-gray-500">
+                        Nessun partecipante disponibile. Aggiungili prima nella pagina classifica.
+                      </p>
+                    ) : (
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {participants.map(participant => {
+                          const key = `${challenge.id}:${participant.id}`;
+                          const checked = completionSet.has(key);
+                          return (
+                            <label key={participant.id} className="flex items-center gap-2 text-sm text-gray-700">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                disabled={syncingKey === key}
+                                onChange={(e) => toggleCompletion(challenge.id, participant.id, e.target.checked)}
+                              />
+                              <span className={checked ? 'font-semibold text-emerald-700' : ''}>{participant.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
 
-                <div className="mt-3 pt-3 border-t border-sand-200">
-                  {participants.length === 0 ? (
-                    <p className="text-xs text-gray-500">
-                      Nessun partecipante disponibile. Aggiungili prima nella pagina classifica.
+                    <p className="text-xs text-gray-500 mt-3">
+                      {completedBy.length === 0
+                        ? 'Completata da: nessuno'
+                        : `Completata da: ${completedBy.map(p => p.name).join(', ')}`}
                     </p>
-                  ) : (
-                    <div className="grid sm:grid-cols-2 gap-2">
-                      {participants.map(participant => {
-                        const key = `${challenge.id}:${participant.id}`;
-                        const checked = completionSet.has(key);
-                        return (
-                          <label key={participant.id} className="flex items-center gap-2 text-sm text-gray-700">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              disabled={syncingKey === key}
-                              onChange={(e) => toggleCompletion(challenge.id, participant.id, e.target.checked)}
-                            />
-                            <span className={checked ? 'font-semibold text-emerald-700' : ''}>{participant.name}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
 
-                  <p className="text-xs text-gray-500 mt-3">
-                    {completedBy.length === 0
-                      ? 'Completata da: nessuno'
-                      : `Completata da: ${completedBy.map(p => p.name).join(', ')}`}
-                  </p>
-                </div>
+                    <div className="flex items-center justify-end gap-1 mt-3 pt-3 border-t border-sand-100">
+                      <button
+                        onClick={() => openEdit(challenge)}
+                        className="p-2 rounded-lg text-slate-600 hover:bg-slate-100"
+                        title="Modifica sfida"
+                        aria-label="Modifica sfida"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        onClick={() => deleteChallenge(challenge)}
+                        className="p-2 rounded-lg text-red-600 hover:bg-red-50"
+                        title="Elimina sfida"
+                        aria-label="Elimina sfida"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

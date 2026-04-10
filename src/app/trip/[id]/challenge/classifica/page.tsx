@@ -104,7 +104,7 @@ export default function ChallengeLeaderboardPage() {
   };
 
   const removeParticipant = async (participant: ChallengeParticipant) => {
-    if (!confirm(`Rimuovere ${participant.name} dalla classifica?`)) return;
+    if (!confirm(`Eliminare definitivamente ${participant.name} dalla classifica?`)) return;
     await supabase.from('trip_challenge_participants').delete().eq('id', participant.id);
     await load();
   };
@@ -126,7 +126,6 @@ export default function ChallengeLeaderboardPage() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Partecipanti & classifica</h1>
-          <p className="text-sm text-gray-500">Tutti partono da 0 punti. I punti arrivano dalle sfide completate.</p>
         </div>
       </div>
 

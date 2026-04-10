@@ -46,10 +46,6 @@ export default function ChallengeHubPage() {
         <h1 className="text-xl font-bold text-gray-900">Challenge</h1>
       </div>
 
-      <p className="text-sm text-gray-500 mb-6">
-        Sezione condivisa del viaggio: tutti i membri vedono la stessa classifica e possono gestire sfide e completamenti.
-      </p>
-
       {loading ? (
         <div className="space-y-3">
           <div className="card h-24 animate-pulse bg-sand-200" />
@@ -65,7 +61,6 @@ export default function ChallengeHubPage() {
                 </div>
                 <h2 className="font-bold text-gray-900">Partecipanti & classifica</h2>
               </div>
-              <p className="text-sm text-gray-600">Aggiungi nomi e guarda i punti in tempo reale.</p>
               <p className="text-xs text-gray-500 mt-2">{participantsCount} partecipanti</p>
             </div>
           </Link>
@@ -78,7 +73,6 @@ export default function ChallengeHubPage() {
                 </div>
                 <h2 className="font-bold text-gray-900">Gestione sfide</h2>
               </div>
-              <p className="text-sm text-gray-600">Crea, modifica, elimina sfide e marca chi le completa.</p>
               <p className="text-xs text-gray-500 mt-2">{challengesCount} sfide</p>
             </div>
           </Link>

@@ -7,6 +7,7 @@ import Image from 'next/image';
 import {
   ArrowLeft, Edit, Trash2, MapPin, Calendar, Clock,
   Plane, Hotel, Utensils, Map, BookOpen, Receipt, Bus, Car, CalendarDays, Users, LocateFixed, EyeOff, Cloud, Images,
+  Trophy,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Trip, TripRole, ROLE_LABELS, ROLE_COLORS } from '@/lib/types';
@@ -24,6 +25,7 @@ const MODULES = [
   { key: 'car_rentals',     href: 'car-rental',      icon: Car,           title: 'Auto noleggio',     countKey: 'car_rentals',    color: 'bg-rose-100',    iconColor: 'text-rose-700' },
   { key: 'meteo',           href: 'meteo',           icon: Cloud,         title: 'Meteo',             countKey: null,             color: 'bg-cyan-100',    iconColor: 'text-cyan-600' },
   { key: 'photos',          href: 'photos',          icon: Images,        title: 'Foto',              countKey: 'photos',         color: 'bg-fuchsia-100', iconColor: 'text-fuchsia-700' },
+  { key: 'challenges',      href: 'challenge',       icon: Trophy,        title: 'Challenge',         countKey: 'challenges',     color: 'bg-yellow-100',  iconColor: 'text-yellow-700' },
 ] as const;
 
 interface Counts {
@@ -37,6 +39,7 @@ interface Counts {
   transport: number;
   car_rentals: number;
   photos: number;
+  challenges: number;
 }
 
 export default function TripHubPage() {
@@ -64,8 +67,9 @@ export default function TripHubPage() {
       supabase.from('transports').select('id', { count: 'exact', head: true }).eq('trip_id', id),
       supabase.from('car_rentals').select('id', { count: 'exact', head: true }).eq('trip_id', id),
       supabase.from('trip_photos').select('id', { count: 'exact', head: true }).eq('trip_id', id),
+      supabase.from('trip_challenges').select('id', { count: 'exact', head: true }).eq('trip_id', id),
       supabase.auth.getUser(),
-    ]).then(async ([tripRes, fl, ac, re, pl, ex, di, li, tr, cr, ph, userRes]) => {
+    ]).then(async ([tripRes, fl, ac, re, pl, ex, di, li, tr, cr, ph, ch, userRes]) => {
       setTrip(tripRes.data);
       setCounts({
         flights:        fl.count ?? 0,
@@ -78,6 +82,7 @@ export default function TripHubPage() {
         transport:      tr.count ?? 0,
         car_rentals:    cr.count ?? 0,
         photos:         ph.count ?? 0,
+        challenges:     ch.count ?? 0,
       });
       // Fetch my role
       const userId = userRes.data.user?.id;

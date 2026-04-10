@@ -25,6 +25,33 @@ export interface TripParticipant {
   created_at: string;
 }
 
+export interface TripChallengeParticipant {
+  id: string;
+  trip_id: string;
+  created_by: string;
+  name: string;
+  created_at: string;
+}
+
+export interface TripChallenge {
+  id: string;
+  trip_id: string;
+  created_by: string;
+  title: string;
+  points: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TripChallengeCompletion {
+  id: string;
+  trip_id: string;
+  challenge_id: string;
+  participant_id: string;
+  completed_by: string;
+  created_at: string;
+}
+
 export interface Flight {
   id: string;
   trip_id: string;
